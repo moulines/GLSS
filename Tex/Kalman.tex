@@ -1,0 +1,1568 @@
+
+\section{Filtering and Backward Markovian Smoothing}
+\label{sec:kalman:filtering}
+We here consider a  Gaussian linear state-space
+\begin{align}
+\X_{k+1} & = \A_{k} \X_k + \C_{k} \U_k + \WRoot_{k}\W_{k}, \label{eq:linear_state_space:time_depend:dynamic}\\
+\Y_k & = \B_{k} \X_k + \D_k \U_k + \VRoot_{k} \V_k, \label{eq:linear_state_space:time_depend:observation}
+\end{align}
+where 
+\begin{itemize}
+\item $\Wproc$ and $\Vproc$ are two independent vector-valued \iid\ Gaussian
+sequences such that $\W_k \sim \gauss (0, I)$ and $\V_k \sim \gauss (0, I)$
+where $I$ is a generic notation for the identity matrices (of suitable dimensions).
+\item $\Uproc$ is an exogeneous input series, assumed to be observed, and independent of $\Wproc$ and $\Vproc$. 
+\item  $\X_0$ is assumed to be $\gauss(0, \Sigma_\Xinit)$ distributed and independent
+of $\{\W_k\}$ and $\{\V_k\}$.
+\end{itemize}
+While we typically assume that $\VCov[k] = \PCov( \VRoot_k \V_k) $ is a full-rank
+covariance matrix, the dimension of the state noise vector (also referred to as
+the \textit{excitation} or \index{Disturbance noise} \textit{disturbance}) $\W_k$ is in many situations
+smaller than that of the state vector $\X_k$ and hence
+$\WCov[k]$ may be rank deficient.
+
+The parameters of the state-space model, $\A_k$, $\B_k$, $\C_k$, $\D_k$, $\WRoot_k$, and $\VRoot_k$,
+depend on the time index $k$. 
+
+A feature that is unique to the Gaussian linear state-space model defined
+by~\eqref{eq:linear_state_space:time_depend:dynamic}--\eqref{eq:linear_state_space:time_depend:observation}
+is that because the states $\chunk{\X}{0}{n}$ and the observations
+$\chunk{\Y}{0}{n}$ are jointly multivariate Gaussian (for any $n$),
+all smoothing distributions are also Gaussian. Hence any smoothing distribution
+is fully determined by its mean vector and covariance matrix. We consider in
+particular below the predictive state estimator $\pred{k}{k-1}$ and filtered state estimator $\filt{k}$
+and denote by
+\begin{align}
+\label{eq:SS:posterior-mean-covariance}
+  \pred{k}{k-1} & = \gauss\left(\postmean{k}{k-1}, \postcov{k}{k-1}\right) \eqsp , \\
+  \filt{k} & = \gauss\left(\filtmean{k}, \filtcov{k}\right) \eqsp,
+\end{align}
+their respective means and covariance matrices.
+
+
+The following elementary lemma is instrumental in computing the predictive and the filtered state estimator.
+
+\begin{prop}[Conditioning in the Gaussian Linear Model]
+  \label{prop:cond:linear_gauss_mod}\index{Gaussian linear model}
+Let $\X$ and $\V$ be two independent Gaussian random vectors with $\PE[\X] = \mu_X$, $\PCov(\X) = \Sigma_\X$, and $\PCov(\V)= \Sigma_\V$, and assume $\PE[\V]= 0$. Consider the model
+\begin{equation}
+\label{eq:model-equation-linear-gauss}
+  \Y = \B \X + \V \eqsp ,
+\end{equation}
+where $\B$ is a deterministic matrix of appropriate dimensions. Further assume that $\B \Sigma_\X \B^t+ \Sigma_\V$ is a full
+rank matrix. Then
+\begin{align}
+  \label{eq:post_mean:Gaussian}
+   \PE\left[ X \mid Y\right] &= \PE[X] + \PCov(X,Y) \left \{ \PCov(Y) \right \}^{-1} (Y - \PE[Y]) \\
+                              &= \mu_\X + \Sigma_\X B^t \left \{ \B \Sigma_\X \B^t + \Sigma_V \right \}^{-1} (Y - B \mu_\X) \nonumber
+\end{align}
+and
+\begin{align}
+  \label{eq:post_cov:Gaussian}
+   \PCov(X \mid Y) &= \PCov(X - \PE[ X | Y]) = \PE \left[ (X - \PE[ X | Y])X^t \right] \\
+                   &= \Sigma_\X - \Sigma_\X \B^t \left \{ \B \Sigma_\X \B^t + \Sigma_\V \right \}^{-1} \B \Sigma_\X \eqsp . \nonumber
+\end{align}
+\end{prop}
+
+\begin{proof}
+Denote by $\hat{X}$ the \rhs\ of \eqref{eq:post_mean:Gaussian}. Then
+\begin{equation*}
+ %\label{eq:expression-error}
+  X - \hat{X} = X- \PE(X) - \PCov(X,Y)  \{ \PCov(Y) \}^{-1} ( \Y - \PE[Y])
+  \eqsp ,
+\end{equation*}
+which implies that
+\begin{equation}
+  \label{eq:gaussian:uncorrelated}
+ \PCov(X-\hat{X},Y)= \PCov(X,Y) - \PCov(X,Y) \{ \PCov(Y) \}^{-1} \PCov(Y) = 0
+ \eqsp.
+\end{equation}
+The random vectors $Y$ and $X-\hat{X}$ thus are jointly Gaussian (as linear
+transformations of a Gaussian multivariate random vector) and uncorrelated.
+Hence, $\Y$ and $\X - \hat{\X}$ are also independent. Writing
+\[
+  X = \hat{X} + (X-\hat{X}) \eqsp ,
+\]
+where $\hat{X}$ is $\sigma(Y)$ measurable (as a linear combination of
+the components of $Y$) and $X-\hat{X}$ is independent of $\hat{X}$, it is then
+easily checked  that $\hat{X} =
+\PE(X\mid Y)$ and that, in addition,
+\[
+  \PCov\left(X \mid Y\right) \eqdef \PCov\left[\left.(X-\hat{X})(X-\hat{X})'
+    \,\right|\,Y\right] = \PCov(X -\hat{X}) \eqsp .
+\]
+Finally, \eqref{eq:post_cov:Gaussian} is obtained upon noting that
+\begin{equation*}
+\PCov(X -\hat{X}) = \PE[ (X - \hat{X} ) (X - \hat{X})^t] = \PE[ (X - \hat{X}) X^t] \eqsp ,
+\end{equation*}
+using~\eqref{eq:gaussian:uncorrelated} and the fact that $\hat{X}$ is a linear
+transform of $Y$. The second lines of~\eqref{eq:post_mean:Gaussian}
+and~\eqref{eq:post_cov:Gaussian} follow from the
+linear structure of~\eqref{eq:model-equation-linear-gauss}.
+\end{proof}
+
+For Gaussian linear state-space models,
+Proposition~\ref{prop:cond:linear_gauss_mod} implies in particular that while
+the mean vectors $\postmean{k}{k-1}$ or $\filtmean{k}$ do depend on the
+observations, the covariance matrices $\postcov{k}{k-1}$ and $\filtcov{k}$ are
+completely determined by the model parameters. 
+\begin{prop}[Filtering in Gaussian Linear State-Space Models]
+  \label{prop:filter:linear_gauss_state_space}
+  The filtered and predictive mean and covariance matrices may be updated recursively as follows, for $k\geq 0$.
+  \begin{description}
+  \item[Filtering:]
+  \begin{align}
+    \filtmean{k} & = \postmean{k}{k-1} + \postcov{k}{k-1} \B_k^t (\B_k\postcov{k}{k-1}\B_k^t + \VCov[k])^{-1}(\Y_k-\B_k \postmean{k}{k-1} - \D_k \U_k) \eqsp , \label{eq:filter:linear_gauss_state_space:filter_mean}\\
+    \filtcov{k} & = \postcov{k}{k-1} - \postcov{k}{k-1} \B_k^t (\B_k\postcov{k}{k-1}\B_k^t + \VCov[k])^{-1}\B_k \postcov{k}{k-1} \eqsp , \label{eq:filter:linear_gauss_state_space:filter_cov}
+  \end{align}
+  with the conventions $\postmean{0}{-1} = 0$ and
+  $\postcov{0}{-1} = \Sigma_\Xinit$.
+
+  \smallskip
+  \item[Prediction:]
+  \begin{align}
+    \postmean{k+1}{k} & = \A_{k} \filtmean{k} + \C_k \U_k \eqsp , \label{eq:filter:linear_gauss_state_space:pred_mean}\\
+    \postcov{k+1}{k} & = \A_{k} \filtcov{k} \A_{k}^t + \WCov[k] \eqsp , \label{eq:filter:linear_gauss_state_space:pred_cov}
+  \end{align}
+  \end{description}
+\end{prop}
+
+\begin{proof}
+  The predictor-to-filter update is obtained by computing the posterior
+  distribution of $\X_k$ given $\Y_k$ in the equivalent pseudo-model $X_k
+  \sim \gauss(\postmean{k}{k-1}, \postcov{k}{k-1})$ and
+  \[
+    \Y_k = \B_k \X_k + \D_k \U_k + \V_k \eqsp,
+  \]
+  where $\V_k$ is $\gauss(0,\VCov[k])$ distributed and independent of $\X_k$.
+  Equations~\eqref{eq:filter:linear_gauss_state_space:filter_mean}
+  and~\eqref{eq:filter:linear_gauss_state_space:filter_cov} thus follow from
+  Proposition~\ref{prop:cond:linear_gauss_mod}. Equations~\eqref{eq:filter:linear_gauss_state_space:pred_mean} and~\eqref{eq:filter:linear_gauss_state_space:pred_cov} correspond to the distribution of
+\[
+  \X_{k+1} = \A_{k} \X_k + \C_k \U_k + \WRoot_{k}\W_{k}
+\]
+when $\X_k$ and $\W_k$ are independent and, respectively,
+$\gauss(\filtmean{k},\filtcov{k})$ and $\gauss(0,I)$ distributed.
+\end{proof}
+
+Next we consider using the backward Markovian decomposition of
+Section~\ref{sec:smoothing:bckw_decomp} to derive the smoothing
+recursion. We will denote by $\postmean{k}{n}$ and $\postcov{k}{n}$
+respectively the mean and covariance matrix of the smoothing
+distribution $\post{k}{n}$. According to
+Remark~\ref{rem:bacward_kernel:interp}, the backward kernel
+$\BK{k}$ corresponds to the distribution of $X_k$ given $X_{k+1}$
+in the pseudo-model
+\[
+  X_{k+1} = \A_k X_k + \WRoot_k \W_k \eqsp ,
+\]
+when $X_k \sim \gauss(\filtmean{k},\filtcov{k})$ and $\W_k \sim
+\gauss(0,I)$ independently of $X_k$. Using
+Proposition~\ref{prop:cond:linear_gauss_mod} once again,
+$\BK{k}(X_{k+1},\cdot)$ is seen to be the Gaussian distribution with
+mean and covariance matrix given by, respectively,
+\begin{equation}
+  \label{eq:linear_gauss_state_space:backward_kernel:mean}
+  \filtmean{k} + \filtcov{k} \A_k^t (\A_k \filtcov{k} \A_k^t + \WRoot_k \WRoot_k^t)^{-1}(X_{k+1}-\A_k \filtmean{k}) \eqsp ,
+\end{equation}
+and covariance matrix
+\begin{equation}
+  \label{eq:linear_gauss_state_space:backward_kernel:cov}
+  \filtcov{k} - \filtcov{k} \A_k^t (\A_k \filtcov{k} \A_k^t + \WRoot_k \WRoot_k^t)^{-1} \A_k \filtcov{k} \eqsp .
+\end{equation}
+\index{Backward smoothing!kernels}
+Proposition~\ref{prop:backward:decomposition:algorithm} asserts
+that $\BK{k}$ is the transition kernel that maps $\post{k+1}{n}$
+to $\post{k}{n}$. Hence, if we assume that $\post{k+1}{n} =
+\gauss(\postmean{k+1}{n},\postcov{k+1}{n})$ is already known,
+\begin{align}
+  \postmean{k}{n} & = \filtmean{k} + \filtcov{k} \A_k^t M_k (\postmean{k+1}{n}-\A_k \filtmean{k}) \eqsp , \label{eq:backward_smoothing:linear_gaussian:direct:mean}\\
+  \postcov{k}{n} & =  \filtcov{k} - \filtcov{k} \A_k^t M_k \A_k \filtcov{k}
+  + \filtcov{k} \A_k^t M_k \postcov{k+1}{n} M_k \A_k \filtcov{k} \eqsp , \label{eq:backward_smoothing:linear_gaussian:direct:cov}
+\end{align}
+give the moments of $\post{k}{n}$, where
+\[
+  M_k = (\A_k \filtcov{k} \A_k^t + \WRoot_k \WRoot_k^t)^{-1} \eqsp .
+\]
+To derive these two latter equations, we must observe that (i)
+$\BK{k}(X_{k+1},\cdot)$ may be interpreted as an affine transformation
+of $\X_{k+1}$ as in \eqref{eq:linear_gauss_state_space:backward_kernel:mean}
+followed by adding an independent zero mean Gaussian random vector
+with covariance matrix as in
+\eqref{eq:linear_gauss_state_space:backward_kernel:cov},
+and that (ii) mapping $\post{k+1}{n}$ into $\post{k}{n}$ amounts to
+replacing the fixed $\X_{k+1}$ by a random vector
+with distribution $\gauss(\postmean{k+1}{n},\postcov{k+1}{n})$.
+The random vector obtained through this mapping
+is Gaussian with mean and covariance as in
+\eqref{eq:backward_smoothing:linear_gaussian:direct:mean}--\eqref{eq:backward_smoothing:linear_gaussian:direct:cov}, the third term of
+\eqref{eq:backward_smoothing:linear_gaussian:direct:cov} being the
+``extra term'' arising because of (ii).
+
+We summarize these observations in the form of an algorithm.
+
+\begin{algo}[Rauch-Tung-Striebel Smoothing]
+  \label{algo:RTS:smooth}
+  \index{Rauch-Tung-Striebel|see{Smoothing}}
+  \index{RTS|see{Smoothing}}
+  \index{Smoothing!Rauch-Tung-Striebel}
+  \index{Smoothing!with Markovian decomposition!backward}
+  Assume that the filtering moments $\filtmean{k}$ and $\filtcov{k}$ are available
+  (for instance by application of
+  Proposition~\ref{prop:filter:linear_gauss_state_space}) for $k=0,\dots,n$.
+  The smoothing moments $\postmean{k}{n}$ and $\postcov{k}{n}$ may be evaluated
+  {\em backwards} by
+  applying~\eqref{eq:backward_smoothing:linear_gaussian:direct:mean}
+  and~\eqref{eq:backward_smoothing:linear_gaussian:direct:cov} from $k=n-1$
+  down to $k=0$.
+\end{algo}
+
+This smoothing approach is generally known as {\em forward filtering, backward
+  smoothing} or {\em RTS (Rauch-Tung-Striebel) smoothing}
+after~\cite{rauch:tung:striebel:1965}. From the discussion above, it clearly
+corresponds to an application of the general idea that the backward posterior
+chain is a Markov chain as discussed in
+Section~\ref{sec:smoothing:bckw_decomp}.  Algorithm~\ref{algo:RTS:smooth} is
+thus the exact counterpart of Algorithm~\ref{algo:markov_smooth:finite} for
+Gaussian linear state-space models.
+
+
+\section{Linear Prediction Interpretation}
+\index{Linear prediction|(}
+\label{sec:LSSM:L2_interp}
+The key point here is that linear prediction can be interpreted ``geometrically'' using
+(elementary) Hilbert space theory. In state-space models (and more generally,
+in time series analysis), this geometric intuition serves as a valuable guide
+in the development and construction of algorithms. As a by-product, this
+approach also constitutes a framework that is not limited to the Gaussian case
+considered up to now and applies to all linear state-space models with finite
+second moments. However, the fact that this approach also fully
+characterizes the marginal smoothing distributions is of course particular to
+Gaussian models.
+
+\subsubsection{Best Linear Prediction}
+This section and the following require basic familiarity with the key notions
+of $\ltwo$ projections, which are reviewed briefly in
+Appendix~\ref{sec:appendix:L2}. Let $\Y_0, \dots, \Y_k$ and $X$ be elements of
+$\ltwo(\Omega,\mathcal{F},\PP)$.  We will assume for the moment that $\Y_0,
+\dots, \Y_k$ and $X$ are scalar random variables. The {\em best linear
+  predictor of} $X$ {\em given} $\Y_0, \dots, \Y_k$ is the $\ltwo$ projection
+of $X$ on the linear subspace
+\begin{equation*}
+% \label{eq:linspace-scalar}
+\linspan(1,Y_0, \dots, Y_k) \eqdef
+\left \{ Y \,: Y = \mu + \sum_{i=0}^k \alpha_i Y_i,  \, \quad \text{$\mu, \alpha_0, \dotsc, \alpha_k \in \rset $} \right\} \eqsp .
+\end{equation*}
+The best linear predictor will be denoted by $\proj{X}{1,Y_0, \dots, Y_k}$, or
+simply by $\hat{X}$ in situations where there is no possible confusion
+regarding the subspace on which $X$ is projected. The notation ``$1$'' refers
+to the constant (deterministic) random variable, whose role will be made
+clearer in Remark~\ref{rem:predlin_nonzeromean} below.
+
+According to the projection theorem
+(Theorem~\ref{thm:projection} in Appendix~\ref{sec:appendix:L2}), $\hat{X}$ is
+characterized by the equations
+$$
+  \PE \{ (X - \hat{X}) Y \} = 0 \quad \text{for all} \quad Y \in \linspan(1,Y_0, \dots, Y_k) \eqsp .
+$$
+Because $1, Y_0, \dots, Y_k$ is a generating family of $\linspan(1,Y_0, \dots, Y_k)$, this condition may be equivalently rewritten as
+$$
+\PE[(X - \hat{X})1] = 0 \quad \text{and} \quad \PE[(X - \hat{X})Y_i]= 0, \quad \text{for all $ i =0, \dotsc, k$} \eqsp .
+$$
+The notations $X-\hat{X} \perp \linspan(1,Y_0, \dots, Y_k)$ and $X-\hat{X}
+\perp Y_i$ will also be used to denote concisely these orthogonality relations,
+where orthogonality is to be understood in the $\ltwo(\Omega,\mathcal{F},\PP)$
+sense. Because $\hat{X} \in \linspan(1,Y_0, \dots, Y_k)$, the projection may be represented as
+\begin{equation}
+  \label{eq:predictor:represent}
+  \hat{X} = \mu + \phi_0 (Y_0 - \PE[Y_0]) + \dotsc + \phi_k (Y_k -\PE[Y_k])
+\end{equation}
+for some scalars $\mu, \varphi_0, \dots, \varphi_k$. Denoting by $\Gamma_k$ the
+matrix $[ \PCov(Y_i,Y_j) ]_{0 \leq i,j \leq k}$ and $\gamma_k$ the vector
+$[\PCov(X,Y_0), \dotsc, \PCov(X,Y_k)]^t$, the prediction equations may be
+summarized as
+\begin{equation}
+  \label{eq:proj_scalar_sol}
+  \mu = \PE[X] \quad \text{and} \quad \Gamma_n \varphi = \gamma_k, \quad \text{where} \quad \varphi = (\varphi_1, \dots, \varphi_k)^t \eqsp .
+\end{equation}
+The projection theorem guarantees that there is at least one solution
+$\varphi$. If the covariance matrix $\Gamma_k$ is singular, there are
+infinitely many solutions, but all of them correspond to the same (uniquely
+defined) optimal linear predictor. An immediate consequence of
+Proposition~\ref{prop:properties_projection_mapping}\ref{item:decomposition_error_projection}
+is that the {\em covariance of the prediction error} may be written in two
+equivalent, and often useful, ways,
+\begin{equation}
+  \label{eq:proj_error}
+  \PCov(X-\hat{X}) = \PE[X(X-\hat{X})] = \PCov(X) - \PCov(\hat{X}) \eqsp .
+\end{equation}
+
+\begin{rem}
+  \label{rem:predlin_nonzeromean}
+  The inclusion of the deterministic constant in the generating family of the
+  prediction subspace is simply meant to capture the prediction capacity of
+  $\PE[X]$. Indeed, because
+\[
+  \PE[(X-\mu)^2] = \PE\{[X-\PE(X)]^2\} + [\mu-\PE(X)]^2
+\leq \PE(X^2) + [\mu-\PE(X)]^2 \eqsp,
+\]
+predicting $X$ by $\PE(X)$ is the optimal guess that always reduces the mean
+squared error in the absence of observations.
+
+In~\eqref{eq:predictor:represent}, we used a technique that will be recurrent
+in the following and consists in replacing some variables by orthogonalized
+ones. Because $\PE[(Y_i-\PE(Y_i))1] = 0$ for $i=0, \dots, k$, the
+projection on $\linspan(1,Y_0, \dots, Y_k)$ may be decomposed as the projection
+on $\linspan(1)$, that is, $\PE(X)$, plus the projection on
+$\linspan(Y_0-\PE[Y_0], \dots, Y_k-\PE[Y_k])$.
+Following~\eqref{eq:proj_scalar_sol}, projecting a non-zero mean variable $X$
+is then achieved by first considering the projection on the centered
+observations $Y_i-\PE(Y_i)$ and then adding the expectation of $X$ to the
+obtained prediction. For this reason, considering means is not crucial, and we
+assume in the sequel that all variables under consideration have zero
+mean. Hence, $\hat{X}$ is directly defined as the projection on
+$\linspan(Y_0, \dots, Y_k)$ only and the covariances $\PCov(Y_i,Y_j)$
+and $\PCov(X,Y_i)$ can be replaced by $\PE(Y_iY_j)$ and $\PE(XY_i)$,
+respectively.
+\end{rem}
+
+We now extend these definitions to the case of vector-valued random variables.
+
+\begin{defi}[Best Linear Predictor]
+  \label{defi:best_linear_prediction}
+  Let $X = [X(1), \dotsc, X(\dimx)]^t$ be a $\dimx$-dimensional random vector
+  and $Y_0, \dots, Y_k$ a family of $\dimy$-dimensional random vectors, all
+  elements of $\ltwo(\Omega,\mathcal{F},\PP)$. It is further assumed that
+  $\PE(X) = 0$ and $\PE(Y_i) = 0$ for $i=0,\dots,k$. The minimum mean square
+  error prediction of $X$ given $Y_0, \dots, Y_k$ is defined as the vector
+  $[\hat{X}(1), \dotsc, \hat{X}(\dimx)]^t$ such that every component
+  $\hat{X}(j)$, $j=1, \dotsc, \dimx$, is the $\ltwo$-projection of $X(j)$ on
+\[
+\linspan\left(\{Y_i(j)\}_{0\leq i \leq k, 1\leq j \leq \dimy}\right) \eqsp .
+\]
+
+As a convention, we will also use the notations
+\[
+\hat{X} = \proj{X}{Y_0, \dots, Y_k} = \proj{X}{\linspan(Y_0, \dots, Y_k)} \eqsp ,
+\]
+in this context.
+\end{defi}
+
+Definition~\ref{defi:best_linear_prediction} asserts that each component $X(j)$ of $X$ is to be projected on the linear subspace spanned by linear combinations of the components of the vectors $Y_i$,
+\begin{equation*}
+% \label{eq:linspace-vector}
+\left \{ Y : Y = \sum_{i=0}^k \sum_{j=1}^{\dimy} \alpha_{i,j} Y_i(j) \eqsp , \quad \alpha_{i,j} \in \rset \right\} \eqsp .
+\end{equation*}
+Proceeding as in the case of scalar variables, the projection $\hat{X}$ may be written
+\begin{equation*}
+%\label{eq:predictor-vector-case}
+\hat{X} =  \sum_{i=0}^k \Phi_i Y_i \eqsp ,
+\end{equation*}
+where $\Phi_0, \dotsc, \Phi_k$ are $\dimx \times \dimy$ matrices. The
+orthogonality relations that characterize the projection of $\hat{X}$ may the
+be summarized as
+\begin{equation}
+\label{eq:predictor-vector-case}
+ \sum_{i=0}^k \Phi_i \scalp{\Y_i}{\Y_j} = \scalp{\X}{\Y_j}
+ \quad \text{for $j=0, \dots, k$} \eqsp ,
+\end{equation}
+where $\scalp{\Y_i}{\Y_j}$ and $\scalp{\X}{\Y_j}$ are respectively $\dimy \times \dimy$ and $\dimx \times \dimy$ matrices such that
+\begin{align*}
+\left[\scalp{\Y_i}{\Y_j}\right]_{l_1 l_2} & = \PE[Y_i(l_1) Y_j(l_2)] \eqsp , \\
+\left[\scalp{\X}{\Y_j}\right]_{l_1 l_2} & = \PE[X(l_1) Y_j(l_2)] \eqsp .
+\end{align*}
+The projection theorem guarantees that there is at least one solution to this system of linear equations. The solution is unique if the $\dimy(k+1) \times \dimy(k+1)$ block matrix
+$$
+\Gamma_k =
+\begin{pmatrix}
+  \scalp{\Y_0}{\Y_0} & \cdots & \scalp{\Y_0}{\Y_k} \\
+  \vdots & & \vdots \\
+  \scalp{\Y_n}{\Y_0} & \cdots & \scalp{\Y_n}{\Y_n}
+\end{pmatrix}
+$$
+is invertible. As in the scalar case, the covariance matrix of the
+prediction error may be written in any of the two forms
+\begin{equation}
+  \label{eq:proj_error:cov}
+  \PCov(X-\hat{X}) = \scalpright{X}{X-\hat{X}} = \scalp{X}{X} - \scalp{\hat{X}}{\hat{X}} \eqsp .
+\end{equation}
+An important remark, which can be easily checked from~\eqref{eq:predictor-vector-case}, is that
+\begin{equation}
+\label{eq:property-projection-matrix}
+\proj{AX}{\Y_0,\dots,\Y_k} = A \proj{X}{\Y_0,\dots,\Y_k} \eqsp ,
+\end{equation}
+whenever $A$ is a deterministic matrix of suitable dimensions.
+This simply says that the projection operator is linear.
+
+Clearly, solving for~\eqref{eq:predictor-vector-case} directly is only possible
+in cases where the dimension of $\Gamma_k$ is modest. In all other
+cases, an incremental way of computing the predictor would be preferable.
+This is exactly what the innovation approach to be described next is all about.
+
+
+\subsubsection{The Innovation Approach}
+Let us start by noting that when $k=0$, and when the covariance matrix
+$\scalp{Y}{Y}$ is invertible, then the best linear predictor of the vector $X$
+  in terms of $Y$ only satisfies
+\begin{align}
+  \hat{X} & = \scalp{X}{Y} \left[\scalp{Y}{Y}\right]^{-1} Y \eqsp ,    \label{eq:projection:single_var} \\
+  \PCov(X-\hat{X}) & = \scalpright{X}{X-\hat{X}} = \scalp{X}{X} - \scalp{X}{Y} \left[\scalp{Y}{Y}\right]^{-1}\scalp{Y}{X}  \eqsp . \nonumber
+\end{align}
+Interestingly, \eqref{eq:projection:single_var} is an expression that we
+already met in Proposition~\ref{prop:cond:linear_gauss_mod}.
+Equation~\eqref{eq:projection:single_var} is equivalent to the first expressions given
+in (\ref{eq:post_mean:Gaussian}) and~(\ref{eq:post_cov:Gaussian}),
+assuming that $X$ is a zero mean variable. This is not surprising, as the
+proof of Proposition~\ref{prop:cond:linear_gauss_mod} was based on the fact
+that $\hat{X}$, as defined by \eqref{eq:projection:single_var}, is such that
+$X-\hat{X}$ is uncorrelated with $\Y$. The only difference is that in the
+(multivariate) Gaussian case, the best linear predictor and the covariance of the prediction
+error also correspond to the first two moments of the conditional distribution
+of $X$ given $Y$, which is Gaussian, and hence entirely define this distribution.
+
+Another case of interest is when the random variables $\Y_0, \ldots, \Y_k$ are uncorrelated in the sense that $\scalp{Y_i}{Y_j}=0$ for any $i,j=0, \dotsc, k$ such that $i \ne j$.
+In this case, provided that the covariance matrices $\scalp{\Y_i}{\Y_i}$ are positive definite for every $i=0, \ldots, k$, the
+best linear predictor of $\X$ in terms of $\{Y_0, \ldots, \Y_k\}$ is given by
+\begin{equation}
+\label{eq:predictor-vector-case-uncorrelated}
+\hat{X} = \sum_{i=0}^k \scalp{X}{Y_i} \left[ \scalp{Y_i}{Y_i} \right]^{-1} Y_i \eqsp .
+\end{equation}
+The best linear predictor of $\X$ in terms of $\Y_0, \ldots, \Y_k$ thus reduces
+to the sum of the best linear predictors of $X$ in terms of each individual
+vector $Y_i$, $i=0, \dotsc, k$.
+
+Of course, in most problems the vectors $\Y_0, \ldots, \Y_k$ are correlated,
+but there is a generic procedure by which we may fall back to this simple
+case, irrespectively of the correlation structure of the $\Y_k$. This approach
+is the analog of the \index{Gram-Schmidt orthogonalization} Gram-Schmidt orthogonalization procedure used to obtain
+a basis of orthogonal vectors from a set of linearly independent vectors.
+
+Consider the linear subspace $\linspan(Y_0, \ldots, Y_j)$
+spanned by the observations up to index $j$. By analogy with the
+Gram-Schmidt procedure, one may replace the set $\{\Y_0,\ldots, \Y_j\}$
+of random vectors by an equivalent set $\{ \I_0, \ldots,\I_j\}$
+of uncorrelated random vectors spanning the same linear subspace,
+\begin{equation}
+\label{eq:gram-schmidt}
+\linspan(Y_0, \ldots, Y_j) = \linspan(\I_0, \ldots, \I_j) \quad \text{for all $j=0, \ldots, k$} \eqsp .
+\end{equation}
+This can be achieved by defining recursively the sequence of $\I_j$ by $\I_0 = Y_0$ and
+\begin{equation}
+\label{eq:definition-innovation}
+\I_{j+1} = \Y_{j+1} - \proj{Y_{j+1}}{\linspan(Y_0, \ldots, Y_j)}
+\end{equation}
+for $j \geq 0$. The projection of $Y_{j+1}$ on
+$\linspan(Y_0, \ldots, Y_j) = \linspan(\I_0, \ldots, \I_j)$ has an
+explicit form, as $\I_0, \dots, \I_j$ are uncorrelated. According to \eqref{eq:predictor-vector-case-uncorrelated},
+\begin{equation}
+\label{eq:projection-formula}
+\proj{Y_{j+1}}{\linspan(\I_0, \ldots, \I_j)} = \sum_{i=0}^{j} \scalp{Y_{j+1}}{\I_i} \left[ \scalp{\I_i}{\I_i} \right]^{-1} \I_i \eqsp ,
+\end{equation}
+which leads to the recursive expression
+\begin{equation}
+\label{eq:definition-innovation-2}
+\I_{j+1} = \Y_{j+1} - \sum_{i=0}^{j} \scalp{Y_{j+1}}{\I_i} \left[ \scalp{\I_i}{\I_i} \right]^{-1} \I_i \eqsp .
+\end{equation}
+For any $j=0, \ldots, k$, $\I_j$ may be interpreted as the part of the
+random variable $\Y_j$ that cannot be linearly predicted from the history
+$\Y_0, \ldots, \Y_{j-1}$. For this reason, $\I_j$ is called the
+\index{Innovation sequence} \textit{innovation}. The innovation sequence
+$\{\I_j\}_{j \geq 0}$ constructed recursively
+from~\eqref{eq:definition-innovation-2} is uncorrelated but is also in a causal
+relationship with $\{Y_j\}_{j \geq 0}$ in the sense that for every $j \geq
+0$,
+\begin{equation}
+\label{eq:causal-innovation}
+\I_j \in \linspan(\Y_0, \ldots, \Y_j) \quad \text{and} \quad \Y_j \in \linspan(\I_0, \ldots, \I_j) \eqsp .
+\end{equation}
+In other words, the sequences $\{Y_j\}_{j \geq 0}$ and $\{ \I_j
+\}_{j \geq 0}$ are related by a causal and causally invertible linear
+transformation.
+
+To avoid degeneracy in~\eqref{eq:projection-formula}
+and~\eqref{eq:definition-innovation-2}, one needs to assume that the covariance
+matrix $\scalp{\I_j}{\I_j}$ is positive definite. Hence we make the following
+definition, which guarantees that none of the components of the random vector
+$\Y_{j+1}$ can be predicted without error by some linear combination of past
+variables $\Y_0, \ldots, \Y_{j}$.
+
+\begin{defi}[Non-deterministic Process]
+  \label{defi:nondetproc} \index{Non-deterministic process}
+  The process $\Yproc$ is said to be \emph{non-deterministic} if for any $j \geq 0$ the matrix
+  \[
+    \PCov\left[\Y_{j+1} - \proj{Y_{j+1}}{Y_0, \ldots, Y_j}\right]
+  \]
+  is positive definite.
+\end{defi}
+
+The innovation sequence $\{ \I_k \}_{k \geq 0}$ is useful for deriving
+recursive prediction formulas for variables of interest. Let $Z \in
+\ltwo(\Omega,\mathcal{F},\PP)$ be a random vector and denote by
+$\projx{Z}{}{k}$ the best linear prediction of $Z$ given observations up to
+index $k$.  Using~\eqref{eq:predictor-vector-case-uncorrelated},
+$\projx{Z}{}{k}$ satisfies the recursive relation
+\begin{align}
+\label{eq:prediction-general}
+\projx{Z}{}{k} &= \sum_{i=0}^k \scalp{Z}{\I_i} \left[ \scalp{\I_i}{\I_i} \right]^{-1} \I_i  \\
+               &= \projx{Z}{}{k-1} + \scalp{Z}{\I_k} \left[ \scalp{\I_k}{\I_k} \right]^{-1} \I_k \eqsp . \nonumber
+\end{align}
+The covariance of the prediction error is given by
+\begin{align}
+\label{eq:prediction-error-covariance}
+\PCov(Z - \projx{Z}{}{k})&= \PCov(Z) - \PCov(\projx{Z}{}{k}) \\
+                         &= \PCov(Z) - \sum_{i=0}^k \scalp{Z}{\I_i} \left[ \scalp{\I_i}{\I_i} \right]^{-1} \scalp{\I_i}{Z} \nonumber \\
+                         &= \PCov(Z) - \PCov(\projx{Z}{}{k-1}) - \scalp{Z}{\I_k} \left[ \scalp{\I_k}{\I_k} \right]^{-1} \scalp{\I_k}{Z} \eqsp . \nonumber
+\end{align}
+\index{Linear prediction|)}
+
+\section{The Prediction and Filtering Recursions}
+\label{sec:kalman:filtering:again}
+\index{Kalman!predictor|(}
+\subsubsection{Kalman Prediction}
+We now consider again the state-space model
+\begin{align}
+\X_{k+1} & = \A_{k} \X_k + \C_k \U_k + \WRoot_{k}\W_{k}, \label{eq:linear_state_space:state:L2}\\
+\Y_k & = \B_{k} \X_k + \D_k \U_k + \VRoot_k \V_k, \label{eq:linear_state_space:observation:L2}
+\end{align}
+where 
+\begin{itemize}
+\item $\Wproc$ and $\Vproc$ are now only assumed to be uncorrelated
+second-order white noise sequences with zero mean and identity covariance
+matrices. 
+\item $\Uproc$ is an exogeneous process independent of $\Wproc$ and $\Vproc$.
+\item The initial state variable $X_0$ is  uncorrelated with
+$\Wproc, \Vproc$ and $\Uproc$  and is such that $\PE(X_0) = 0$ and $\PCov(X_0) =
+\Sigma_\Xinit$. 
+\end{itemize}
+It is also assumed that $\Yproc$ is non-deterministic in the
+sense of Definition~\ref{defi:nondetproc}. The form
+of~\eqref{eq:linear_state_space:observation:L2} shows that a simple sufficient
+(but not necessary) condition that guarantees this requirement is that
+$\VCov[k]$ be positive definite for all $k \geq 0$.
+
+As a notational convention, for any (scalar or vector-valued) process $\{ Z_k
+\}_{k\geq 0}$, the projection of $Z_k$ onto the linear space spanned by the
+random vectors $Y_0, \ldots, Y_n$ will be denoted by $\projx{Z}{k}{n}$.
+Particular cases of interest are $\projx{X}{k}{k-1}$, which corresponds to the
+(one-step) state prediction as well as $\projx{Y}{k}{k-1}$ for the observation
+prediction. The innovation $\I_k$ discussed in the previous section is by
+definition equal to the observation prediction error $Y_k - \projx{Y}{k}{k-1}$.
+We finally introduce two additional notations,
+\[
+  \ICov_k \eqdef \PCov(\I_k)  \quad \text{and} \quad \postcov{k}{n} \eqdef \PCov(X_k - \projx{X}{k}{n}) \eqsp .
+\]
+
+\begin{rem}
+  The careful reader will have noticed that we overloaded the notations
+  $\postmean{k}{k-1}$ and $\postcov{k}{k-1}$, which correspond, in
+  Proposition~\ref{prop:filter:linear_gauss_state_space}, to the mean and
+  covariance matrix of $\pred{k}{k-1}$ and, in
+  Algorithm~\ref{algo:filter:linear_state_space:kalman}, to the best mean square
+  linear predictor of $X_k$ in terms of $Y_0,\dots,Y_{k-1}$ and the
+  covariance of the linear prediction error $X_k-\postmean{k}{k-1}$.
+  This abuse of notation is justified by
+  Proposition~\ref{prop:cond:linear_gauss_mod}, which states that these
+  concepts are equivalent {\em in the Gaussian case.} In the general non-Gaussian
+  model, only the second interpretation (linear prediction) is correct.
+\end{rem}
+
+We first consider determining the innovation sequence from the observations.
+Projecting~\eqref{eq:linear_state_space:observation:L2} onto $\linspan(Y_0,
+\ldots, Y_{k-1})$ yields
+\begin{equation}
+\label{eq:prediction-observation}
+\projx{Y}{k}{k-1} = \B_k \projx{X}{k}{k-1} + \D_k \U_k + \VRoot_k \projx{V}{k}{k-1} \eqsp .
+\end{equation}
+Our assumptions on the state-space model imply that
+$\scalp{\V_k}{Y_j} = 0$ for $j=0,\dots,k-1$, so that $\projx{\V}{k}{k-1}=0$. Hence
+\begin{equation}
+\label{eq:innovation}
+\I_k = \Y_k - \projx{Y}{k}{k-1} = \Y_k - \B_k \projx{X}{k}{k-1} - D_k \U_k\eqsp .
+\end{equation}
+
+We next apply the general decomposition obtained~\eqref{eq:prediction-general}
+to the variable $X_{k+1}$ to obtain the state prediction update.
+Equation~\eqref{eq:prediction-general} applied with $Z=X_{k+1}$ yields
+\begin{equation}
+  \label{eq:state-prediction0}
+  \projx{X}{k+1}{k} = \projx{X}{k+1}{k-1} + \scalp{\X_{k+1}}{\I_k} \left[ \scalp{\I_k }{\I_k} \right]^{-1} \I_k \eqsp.
+\end{equation}
+To complete the recursion, the first term on the \rhs\ should be expressed in
+terms of $\projx{X}{k}{k-1}$ and $\I_{k-1}$. Projecting the state
+equation~\eqref{eq:linear_state_space:state:L2} on the linear subspace
+spanned by $\Y_0, \ldots, \Y_{k-1}$ yields
+\begin{equation}
+\label{eq:state-prediction}
+\projx{X}{k+1}{k-1} = \A_k \projx{X}{k}{k-1} + \C_k \U_k + \WRoot_k \projx{\W}{k}{k-1}= \A_k \projx{X}{k}{k-1} + \C_k \U_k\eqsp,
+\end{equation}
+because $\scalp{\W_k}{\Y_j}= 0$ for indices $j=0, \ldots, k-1$.
+Thus, \eqref{eq:state-prediction0} may be written
+\begin{equation}
+  \label{eq:predicted-state-estimator}
+  \projx{X}{k+1}{k} = \A_k \projx{X}{k}{k-1} + \C_k \U_k + \KGP{k} \I_k \eqsp ,
+\end{equation}
+where $\KGP{k}$,
+called the \index{Kalman!predictor!gain} \textit{Kalman
+  gain}, is a deterministic matrix defined by
+\begin{equation}
+  \label{eq:def:KGP}
+  \KGP{k} \eqdef \scalp{\X_{k+1}}{\I_k} \ICov_k^{-1} \eqsp .
+\end{equation}
+To evaluate the Kalman gain, first note that
+\begin{equation}
+\label{eq:expression-innovation}
+\I_k = \Y_k - \B_k \projx{\X}{k}{k-1} - \D_k \U_k = \B_k (\X_k - \projx{\X}{k}{k-1}) + \VRoot_k \V_k \eqsp.
+\end{equation}
+Because $\scalp{\V_k}{(X_k - \projx{\X}{k}{k-1})}= 0$, \eqref{eq:expression-innovation} implies that
+\begin{equation}
+\label{eq:covariance-matrix-innovation}
+  \ICov_k= \B_k \postcov{k}{k-1} \B_k^t + \VCov[k] \eqsp ,
+\end{equation}
+where $\postcov{k}{k-1}$ is our notation for the covariance of the state
+prediction error $\X_k - \projx{\X}{k}{k-1}$. Using the same principle,
+\begin{align}
+\nonumber \scalp{\X_{k+1}}{\I_k} & = \A_k \scalp{\X_k}{\I_k} + \WRoot_k \scalp{\W_k}{\I_k} \\
+\nonumber & = \A_k \postcov{k}{k-1} \B_k^t + \WRoot_k \scalpright{\W_k}{\X_k - \projx{\X}{k}{k-1}} \B_k^t \\
+\label{eq:scalar-product-K} & = \A_k \postcov{k}{k-1} \B_k^t \eqsp ,
+\end{align}
+where we have used the fact that
+$$
+\W_k \perp \linspan(\X_0, \W_0, \ldots, \W_{k-1}, \V_0, \ldots, \V_{k-1})
+\supseteq \linspan (\X_k, \Y_0, \ldots, \Y_{k-1}) \eqsp.
+$$
+Combining \eqref{eq:covariance-matrix-innovation} and \eqref{eq:scalar-product-K} yields the expression of the Kalman gain:
+\begin{equation}
+  \label{eq:KalmnaGainExpression}
+  \KGP{k}= \A_k \postcov{k}{k-1} \B_k^t \left \{ \B_k \postcov{k}{k-1} \B_k^t + \VCov[k] \right\}^{-1} \eqsp .
+\end{equation}
+
+As a final step, we now need to evaluate $\postcov{k+1}{k}$. Because $\X_{k+1} = \A_k \X_k + \C_k \U_k + \WRoot_k \W_k$ and $\scalp{\X_k}{\W_k} = 0$,
+\begin{equation}
+  \label{eq:covariance-state}
+  \PCov(\X_{k+1})= \A_k \PCov(\X_k) \A_k^t + \WRoot_k \WRoot_k^t \eqsp .
+\end{equation}
+Similarly, the predicted state estimator follows
+\eqref{eq:predicted-state-estimator} in which $\projx{X}{k}{k-1}$ and $\I_k$
+also are uncorrelated, as the former is an element of $\linspan(Y_0, \dots,
+Y_{k-1})$. Hence
+\begin{equation}
+\label{eq:covariance-predicted-state}
+\PCov( \projx{X}{k+1}{k}) = \A_k \PCov(\projx{X}{k}{k-1}) \A_k^t + \KGP{k} \ICov_k \KGP{k}^t \eqsp .
+\end{equation}
+Using~\eqref{eq:proj_error:cov},
+\begin{align}
+  \postcov{k+1}{k} & = \PCov(\X_{k+1}) - \PCov( \projx{\X}{k+1}{k}) \nonumber \\
+ \label{eq:riccati-recursion} & = \A_k \postcov{k}{k-1} \A_k^t + \WRoot_k \WRoot_k^t - \KGP{k} \ICov_k \KGP{k}^t \eqsp ,
+\end{align}
+upon subtracting~\eqref{eq:covariance-predicted-state}
+from~\eqref{eq:covariance-state}. Equation~\eqref{eq:riccati-recursion} is known as
+the \index{Riccati equation} {\em Riccati equation}. Collecting~(\ref{eq:innovation}),
+(\ref{eq:predicted-state-estimator}), (\ref{eq:covariance-matrix-innovation}),
+(\ref{eq:KalmnaGainExpression}), and~(\ref{eq:riccati-recursion}), we obtain the
+standard form of the so-called {\em Kalman filter}, which corresponds to the
+prediction recursion.
+
+\begin{algo}[Kalman Prediction]
+  \label{algo:filter:linear_state_space:kalman}
+  \begin{description}
+  \item[Initialization:] $\postmean{0}{-1} = 0$ and $\postcov{0}{-1} = \Sigma_\Xinit$.
+  \item[Recursion:] For $k=0, \dots n$,
+  \begin{align}
+    &\I_k  = \Y_k - \B_k \postmean{k}{k-1} - \D_k \U_k \eqsp , && \text{innovation} \label{eq:kalman:innovation:in_pred_recursion} \\
+    &\ICov_k  = \B_k\postcov{k}{k-1}\B_k^t + \VCov[k] \eqsp , && \text{innovation cov.} \label{eq:kalman:innovation_cov:in_pred_recursion} \\
+    &\KGP{k}  =  \A_{k}\postcov{k}{k-1} \B_k^t \ICov_k^{-1} \eqsp , && \text{Kalman Gain} \label{eq:kalman:prediction_gain} \\
+    &\postmean{k+1}{k}  = \A_{k}\postmean{k}{k-1} + \C_k \U_k + \KGP{k} \I_k \eqsp , && \text{predict. state estim.} \label{eq:kalman:pred_mean} \\
+    &\postcov{k+1}{k}  = (\A_{k} - \KGP{k} \B_k) \postcov{k}{k-1}\A_{k}^t + \WCov[k] \eqsp . && \text{predict. error cov.} \label{eq:kalman:pred_cov}
+  \end{align}
+  \end{description}
+\end{algo}
+\index{Kalman!predictor|)}
+
+It is easily checked using~\eqref{eq:kalman:prediction_gain}
+that~\eqref{eq:kalman:pred_cov} and~(\ref{eq:riccati-recursion}) are indeed
+equivalent, the former being more suited for practical implementation, as it
+requires fewer matrix multiplications. Equation~\eqref{eq:kalman:pred_cov} however
+dissimulates the fact that $\postcov{k+1}{k}$ indeed is a symmetric matrix. One
+can also check by simple substitution that
+Algorithm~\ref{algo:filter:linear_state_space:kalman} is also equivalent to
+the application of the recursion derived in
+Proposition~\ref{prop:filter:linear_gauss_state_space} for Gaussian models.
+
+\begin{rem}
+  \label{rem:GLSSM:likelihhod}
+  Evaluating the likelihood function for general linear state-space models is a
+  complicated task. For Gaussian models however, $\I_k$ and $\ICov_k$ entirely
+  determine the first two moments, and hence the full conditional
+  \pdf\, of $Y_k$ given the
+  previous observations $Y_0, \dots, Y_{k-1}$, in the form
+  \begin{equation}
+  \label{eq:conditional-density}
+  (2\pi)^{-\dimy/2} |\ICov_k|^{-1/2} \exp \left\{ - \frac12 \I_k^t \ICov_k^{-1} \I_k \right\}
+  \end{equation}
+ where $\dimy$ is the dimension of the observations. As a consequence, the log-likelihood of observations up to index $n$ may be computed as \index{Likelihood!in state-space model}
+\begin{equation}
+  \label{eq:linear_gauss_state_space:log_likelihood}
+  \logl{n} = -\frac{(n+1)\dimy}{2} \log(2 \pi) - \frac{1}{2} \sum_{k=0}^n \left\{ \log \left|\ICov_k\right| + \I_k^t \ICov_k^{-1} \I_k \right\} \eqsp ,
+\end{equation}
+which may be evaluated recursively (in $n$) using
+Algorithm~\ref{algo:filter:linear_state_space:kalman}.
+Equation~\eqref{eq:linear_gauss_state_space:log_likelihood}, which is very important in
+practice for parameter estimation in state-space models.
+\end{rem}
+
+\begin{ex}[Random Walk Plus Noise Model] To illustrate Algorithm~\ref{algo:filter:linear_state_space:kalman} on a simple example, consider the scalar random walk plus noise model defined
+  by
+\begin{align*}
+\X_{k+1} &= \X_k + \sigma_u \W_k \eqsp, \\
+\Y_k &= \X_k + \sigma_v \V_k \eqsp,
+\end{align*}
+where all variables are scalar. Applying the Kalman prediction equations
+yields, for $k \geq 1$,
+\begin{align}
+\label{eq:predicted-estimator-RW}
+\projx{\X}{k+1}{k}&= \projx{\X}{k}{k-1} + \frac{\postcov{k}{k-1}}{\postcov{k}{k-1}+\sigma_v^2}\left( \Y_k - \projx{\X}{k}{k-1} \right) \\ \nonumber
+                 &= (1-a_k) \projx{\X}{k}{k-1} + a_k \Y_k \eqsp , \\
+\label{eq:predicted-error-covariance-RW}
+\postcov{k+1}{k} &= \postcov{k}{k-1} + \sigma_u^2 - \frac{\postcov{k}{k-1}^2}{\postcov{k}{k-1}+\sigma_v^2} \nonumber \\
+                 &= \frac{\postcov{k}{k-1} \sigma_v^2}{\postcov{k}{k-1} + \sigma_v^2}  + \sigma_u^2 \eqdef f(\postcov{k}{k-1}) \eqsp ,
+\end{align}
+with the notation $a_k = \postcov{k}{k-1}/ (\postcov{k}{k-1}+\sigma_v^2)$.
+This recursion is initialized by setting $\projx{X}{0}{-1}= 0$ and
+$\postcov{0}{-1}= \Sigma_\Xinit$. For such a state-space model with time-independent parameters, it is interesting to consider the \emph{steady-state
+  solutions} for the prediction error covariance,
+that is, to solve for $\Sigma$ in the equation
+$$
+\Sigma = f(\Sigma) = \frac{\Sigma \sigma_v^2}{\Sigma + \sigma_v^2} +
+\sigma_u^2 \eqsp .
+$$
+Solving this equation for $\Sigma\geq 0$ yields
+$$
+\Sigma_\infty = \frac12 \left( \sigma_u^2 + \sqrt{\sigma_u^4 + 4 \sigma_u^2 \sigma_v^2}\right) \eqsp.
+$$
+Straightforward calculations show that, for any $M < \infty$, $\sup_{0 \leq
+  \Sigma \leq M} |\dot{f}(\Sigma)| < 1$. In addition, for $k \geq 1$,
+$(\postcov{k+1}{k} - \Sigma_\infty) (\postcov{k}{k-1} - \Sigma_\infty) \geq 0$.
+These remarks imply that $\postcov{k+1}{k}$ always falls between
+$\postcov{k}{k-1}$ and $\Sigma_\infty$, and in particular that
+$\postcov{k+1}{k} \leq \max(\postcov{1}{0},\Sigma_\infty)$.  Because $f$ is
+strictly contracting on any compact subset of $\rset^+$, regardless of the
+value of $\Sigma_\Xinit$, the coefficients $a_k =
+\postcov{k}{k-1}/(\postcov{k}{k-1}+\sigma_v^2)$ converge to
+$$
+  a_\infty = \frac{\Sigma_\infty}{\Sigma_\infty + \sigma_v^2} \eqsp ,
+$$
+and the mean squared error of the observation predictor $(Y_{k+1} - \projx{Y}{k+1}{k})$ converges to $\Sigma_\infty+ \sigma_v^2$.
+\end{ex}
+
+\begin{rem}[Algebraic Riccati Equation]
+\index{Riccati equation!algebraic}
+The equation obtained by assuming that the model parameters
+$\A_k$, $\B_k$, $\VCov[k]$, and $\WCov[k]$ are time invariant, that is,
+do not depend on the index $k$, and then dropping indices
+in \eqref{eq:riccati-recursion}, is the so-called
+\emph{algebraic Riccati equation} (ARE). Using
+\eqref{eq:covariance-matrix-innovation}
+and \eqref{eq:KalmnaGainExpression}, one finds that the
+ARE may be written
+$$
+\Sigma = \A\Sigma\A^t + \A\Sigma\B^t(\B\Sigma\B^t+\VCov)^{-1}\B\Sigma\A^t
+ + \WCov.
+$$
+Conditions for the existence of a symmetric positive semi-definite solution
+to this equation, and conditions under which the recursive
+form \eqref{eq:riccati-recursion} converges to such a solution
+can be found, for instance, in \cite{caines:1988}.
+\end{rem}
+
+\index{Kalman!filter|(}
+\subsubsection{Kalman Filtering}
+Algorithm~\ref{algo:filter:linear_state_space:kalman} is primarily intended
+to compute the state predictor $\projx{X}{k}{k-1}$ and the covariance
+$\postcov{k}{k-1}$ of the associated prediction error. It is of course possible
+to obtain a similar recursion for the filtered state estimator $\projx{X}{k}{k}$
+and associated covariance matrix $\postcov{k}{k}$.
+
+Let us start once again with \eqref{eq:prediction-general}, applied with $Z=X_{k}$, to obtain
+\begin{equation}
+\label{eq:filtering:applying_general_decomp}
+\projx{X}{k}{k} = \projx{X}{k}{k-1} + \scalp{X_k}{\I_k} \ICov^{-1}_k  \I_k = \projx{X}{k}{k-1} + \KGF{k} \I_k
+\end{equation}
+where, this time, $\KGF{k} \eqdef \PCov(X_k,\I_k) \ICov^{-1}_k $ is the
+filter version of the \index{Kalman!filter!gain} Kalman gain. The first term on the \rhs\
+of~\eqref{eq:filtering:applying_general_decomp} may be rewritten as
+\begin{equation}
+\label{eq:predicted-state-from-filtered-state}
+\projx{\X}{k}{k-1} = \A_{k-1} \projx{\X}{k-1}{k-1} + \C_k \U_k +  \WRoot_{k-1} \projx{\U}{k-1}{k-1} = \A_{k-1} \projx{\X}{k-1}{k-1} + \C_k \U_k,
+\end{equation}
+where we have used
+$$
+  \W_{k-1} \perp \linspan(\X_0, \W_0, \dotsc, \W_{k-2})
+  \supseteq \linspan(\Y_0, \dotsc, \Y_{k-1}) \eqsp .
+$$
+Likewise, the second term on the \rhs\
+  of~\eqref{eq:filtering:applying_general_decomp} reduces to
+\begin{equation}
+\label{eq:expression-Kalman-gain-filtered}
+\KGF{k} = \postcov{k}{k-1} B_k^t \ICov_k^{-1} \eqsp ,
+\end{equation}
+because $\I_k = \B_k (X_k - \projx{X}{k}{k-1}) + \VRoot_k \V_k$ with
+$\scalp{\X_k}{\V_k}= 0$.
+
+The only missing piece is the relationship between the error covariance matrices
+$\postcov{k}{k}$ and $\postcov{k}{k-1}$. The state equation $X_k = \A_{k-1} \X_{k-1} + \C_k \U_k + \WRoot_{k-1} \W_{k-1}$ and the state prediction equation $\projx{X}{k}{k-1}= \A_{k-1} \projx{X}{k-1}{k-1}$ imply that
+\begin{eqnarray*}
+\PCov(\X_k) & = & \A_{k-1} \PCov(\X_{k-1}) \A_{k-1}^t + \WRoot_{k-1} \WRoot_{k-1}^t \eqsp ,\\
+\PCov(\projx{X}{k}{k-1}) & = & \A_{k-1} \PCov(\projx{X}{k-1}{k-1}) \A_{k-1}^t \eqsp ,
+\end{eqnarray*}
+which, combined with \eqref{eq:proj_error:cov}, yield
+\begin{equation}
+\label{eq:covariance-predicted-state-from-covariance-filtered-state}
+\postcov{k}{k-1} = \A_{k-1} \postcov{k-1}{k-1} \A_{k-1}^t + \WRoot_{k-1} \WRoot_{k-1}^t \eqsp .
+\end{equation}
+By the same argument, the state recursion $\X_k = \A_{k-1} \X_{k-1} + \WRoot_{k-1} \W_{k-1}$ and the filter update $\projx{X}{k}{k}  = \A_{k-1} \projx{\X}{k-1}{k-1} + \KGF{k} \I_k$ imply that
+\begin{equation}
+\label{eq:riccati-filtered}
+\postcov{k}{k} = \A_{k-1} \postcov{k-1}{k-1} \A_{k-1}^t + \WCov[k-1] - \KGF{k} \ICov_k \KGF{k}^t \eqsp .
+\end{equation}
+These relations are summarized in the form of an algorithm.
+
+\begin{algo}[Kalman Filtering]
+  \label{algo:filter:linear_state_space:kalman:filtered}
+  For $k=0, \dots n$, do the following.
+  \begin{itemize}
+  \item If $k=0$, set $\projx{X}{k}{k-1} =0$ and $\postcov{k}{k-1} =
+    \Sigma_\Xinit$; otherwise, set
+  \begin{align*}
+    & \projx{X}{k}{k-1} = \A_{k-1} \projx{X}{k-1}{k-1} + \C_{k-1} \U_{k-1} \eqsp , \\
+    & \postcov{k}{k-1} = \A_{k-1} \postcov{k-1}{k-1} \A_{k-1}^t + \WCov[k-1] \eqsp .
+  \end{align*}
+  \item Compute
+  \begin{align}
+    &\I_k  = \Y_k - \B_{k} \projx{X}{k}{k-1} - \D_k \U_k \eqsp ,&& \text{innovation} \label{eq:kalman:innovation} \\
+    &\ICov_k  = \B_k \postcov{k}{k-1} \B_k^t + \VCov[k] \eqsp ,&& \text{innovation cov.}  \label{eq:kalman:innovation_cov} \\
+    &\KGF{k}  =   \postcov{k}{k-1} \B_k^t \ICov_k^{-1} \eqsp , && \text{Kalman (filter.) gain}\label{eq:kalman:gain} \\
+    &\postmean{k}{k} = \postmean{k}{k-1} + \KGF{k} \I_k \eqsp , && \text{filter. state estim.} \label{eq:kalman:filtered_mean} \\
+    &\postcov{k}{k}  =  \postcov{k}{k-1} - \KGF{k} \B_k \postcov{k}{k-1} \eqsp . && \text{filter. error cov.} \label{eq:kalman:filtered_cov}
+  \end{align}
+  \end{itemize}
+\end{algo}
+
+
+\index{Smoothing!disturbance|(}
+\section{Disturbance Smoothing}
+\label{sec:pos_comput:smoothing}
+\label{sec:disturb_smooth}
+After revisiting Proposition~\ref{prop:filter:linear_gauss_state_space}, we are
+now ready to derive an alternative solution to the smoothing problem that will
+share the general features of Algorithm~\ref{algo:RTS:smooth} (RTS smoothing)
+but operate only on the disturbance vectors $\W_k$ rather than on the states
+$\X_k$. This second form of smoothing, which is more efficient in situations
+discussed at the beginning of Section~\ref{sec:LSSM:L2_interp}, has been
+popularized under the name of {\em disturbance smoothing}
+by~\cite{dejong:1988}, \cite{kohn:ansley:1989}, and~\cite{koopman:1993}. It is
+however a rediscovery of a technique known, in the engineering literature, as
+\index{Smoothing!Bryson-Frazier} \index{Bryson-Frazier|see{Smoothing}} Bryson-Frazier (or BF) smoothing, named after~\cite{bryson:frazier:1963}---see also \cite[Section 10.2.2]{kailath:sayed:hassibi:2000}. The
+original arguments invoked by~\cite{bryson:frazier:1963} were however very
+different from the ones discussed here and the use of the innovation approach
+to obtain smoothing estimates was initiated by~\cite{kailath:frost:1968}.
+
+Recall that for $k=0, \dots, n-1$ we denote by
+$\projx{\U}{k}{n}$ the smoothed disturbance estimator, \ie, the best
+linear prediction of the disturbance $\W_k$ in terms of the
+observations $Y_0,\dots,Y_n$. The additional notation
+\[
+  \Xi_{k|n} \eqdef \PCov(\W_k - \projx{W}{k}{n})
+\]
+will also be used. We first state the complete algorithm before proving that it
+is actually correct.
+
+\begin{algo}[Disturbance Smoother]
+\label{algo:dist_smooth}
+\begin{description}[Initial:]
+\item[Forward filtering:] Run the Kalman filter (Algorithm
+  \ref{algo:filter:linear_state_space:kalman}) and store
+  for $k=0, \dotsc, n$ the innovation $\I_k$,
+  the inverse innovation covariance $\ICov_k^{-1}$, the state
+  prediction error covariance $\postcov{k}{k-1}$, and
+  \[
+    \trmat_k \eqdef \A_k - \KGP{k}\B_{k} \eqsp ,
+  \]
+ where $\KGP{k}$ is the Kalman (prediction) gain.
+\item[Backward smoothing:] For $k=n-1,\ldots,0$, compute
+  \begin{align}
+    \label{eq:dsmth_p}
+    \iqsm_k &= \begin{cases}
+                    \B^t_n\ICov_n^{-1}\I_n & \quad \text{for}  \quad k = n-1,\\
+                    \B^t_{k+1}\ICov_{k+1}^{-1}\I_{k+1}  + \trmat_{k+1}^t\iqsm_{k+1} & \quad \text{otherwise},
+               \end{cases} \\
+    \label{eq:dsmth_U}
+    \IQsm_k &=  \begin{cases}
+                    \B^t_n\ICov_n^{-1}\B_n & \quad \text{for} \quad  k = n-1,\\
+                    \B^t_{k+1}\ICov_{k+1}^{-1}\B_{k+1} + \trmat_{k+1}^t\IQsm_{k+1}\trmat_{k+1} & \quad \text{otherwise},
+                \end{cases} \\
+   \label{eq:dsmth_dm}
+   \projx{\U}{k}{n} &=  \WRoot^t_{k} \iqsm_{k} \eqsp , \\
+   \label{eq:dsmth_dc}
+   \Xi_{k|n} &=  I - \WRoot^t_{k} \IQsm_{k} \WRoot_k \eqsp .
+\end{align}
+\item[Initial Smoothed State Estimator:] Compute
+\begin{align}
+  \label{eq:dsmth_state1}
+  \postmean{0}{n} &= \Sigma_\Xinit \left(\B_0^t\ICov_0^{-1}\epsilon_{0} + \trmat_{0}^t\iqsm_{0} \right) \eqsp , \\
+  \label{eq:dsmth_scov1}
+  \postcov{0}{n} &= \Sigma_\Xinit - \Sigma_\Xinit \left[\B_0^t\ICov_0^{-1}\B_0 + \trmat_{0}^t\IQsm_{0}\trmat_{0}\right] \Sigma_\Xinit \eqsp .
+\end{align}
+\item [Smoothed State Estimator:] For $k=0,\ldots n-1$,
+  \begin{align}
+    \label{eq:dsmth_statem}
+    \postmean{k+1}{n} &= \A_k \postmean{k}{n} + \WRoot_k \projx{\U}{k}{n} \eqsp , \\
+   \postcov{k+1}{n}  &= \A_k \postcov{k}{n} \A_k^t + \WRoot_k \Xi_{k|n} \WRoot_k^t  \nonumber \\
+    \label{eq:dsmth_statec}
+       & \qquad - \A_k \postcov{k}{k-1}\trmat_k^t\IQsm_k \WCov[k] - \WCov[k] \IQsm_k \trmat_k\postcov{k}{k-1} \A_k^t \eqsp .
+  \end{align}
+\end{description}
+\end{algo}
+
+Algorithm~\ref{algo:dist_smooth} is quite complex, starting with an
+application of the Kalman prediction recursion, followed by a backward
+recursion to obtain the smoothed disturbances and then a final forward recursion
+needed to evaluate the smoothed states. The proof below is split into two
+parts that concentrate on each of the two latter aspects of the algorithm.
+
+\begin{proof}[Backward Smoothing] We begin with the derivation of the equations needed for computing the
+  smoothed disturbance estimator $\projx{\U}{k}{n}$ for $k=n-1$ down to 0. As
+  previously, it is advantageous to use the innovation sequence $\{\I_{0},
+  \ldots, \I_n \}$ instead of the correlated observations $\{ \Y_0, \dotsc,
+  \Y_n\}$. Using \eqref{eq:prediction-general}, we have
+\begin{equation}
+  \label{eq:nprjf}
+  \projx{\U}{k}{n} = \sum_{i=0}^n  \scalp{\W_k}{\I_i} \ICov_i^{-1}\I_i = \sum_{i=k+1}^n \scalp{\W_k}{\I_i} \ICov_i^{-1}\I_i \eqsp,
+\end{equation}
+where the fact that
+$$
+\W_k \perp \linspan \{ \Y_0, \ldots \Y_{k} \} = \linspan \{ \I_0, \ldots, \I_k\} \eqsp ,
+$$
+has been used to obtain the second expression. We now prove by
+induction that for any $i = k+1, \dotsc, n$,
+\begin{align}
+\label{eq:induction-relation-1}
+& \scalpright{\W_k}{\X_i - \projx{X}{i}{i-1}}= \begin{cases}
+\WRoot_k^t \eqsp, & \quad i=k+1 \eqsp, \\
+\WRoot_k^t \trmat_{k+1}^t \; \trmat_{k+2}^t \; \dotsc \; \trmat_{i-1}^t
+  \eqsp, & \quad i \geq k+2 \eqsp,\\
+\end{cases}\\
+\label{eq:induction-relation-2}
+& \scalp{\W_k}{\I_i} = \begin{cases}
+\WRoot_k^t \B_{k+1}^t \eqsp, & \quad i = k+1 \eqsp, \\
+\WRoot_k^t \Lambda_{k+1}^t \; \trmat_{k+2}^t \; \dotsc \; \trmat_{i-1}^t \B_i^t
+  \eqsp, & \quad i \geq k+2 \eqsp.
+\end{cases}
+\end{align}
+First note that
+\begin{align*}
+  \scalp{\W_k}{\I_{k+1}} & = \scalpright{\W_k}{X_{k+1}-\projx{X}{k+1}{k}}\B_{k+1}^t \\
+  & = \scalp{\W_k}{\X_{k+1}} B_{k+1}^t =  \WRoot_k^t \B_{k+1}^t \eqsp ,
+\end{align*}
+using~(\ref{eq:innovation}) and the orthogonality relations $\W_k \perp \V_{k+1}$, $\W_k \perp \linspan(Y_0, \ldots, \Y_k)$ and $\W_k \perp \X_k$. Now assume that \eqref{eq:induction-relation-1}--\eqref{eq:induction-relation-2} hold for some $i \geq k+1$. Combining the state equation~(\ref{eq:linear_state_space:state:L2}) and the prediction update equation \eqref{eq:predicted-state-estimator}, we obtain
+\begin{equation}
+\label{eq:diffffpreddd}
+\X_{i+1} - \projx{\X}{i+1}{i} = \trmat_{i} (\X_i - \projx{\X}{i}{i-1}) + \WRoot_i \W_i - \KGP{i} \VRoot_i \V_i \eqsp .
+\end{equation}
+Because $\scalp{\W_k}{\W_i}= 0$ and $\scalp{\W_k}{\V_i}=0$, the induction assumption implies that
+\begin{equation}
+\label{eq:lecoupdapres-1}
+\scalpright{\W_k}{\X_{i+1} - \projx{\X}{i+1}{i}} = \scalpright{\W_k}{\X_i - \projx{\X}{i}{i-1}} \trmat_{i}^t = \WRoot_k^t \trmat_{k+1}^t \; \trmat_{k+2}^t \; \dotsc \; \trmat_{i}^t \eqsp .
+\end{equation}
+Proceeding as in the case $i=k$ above,
+\begin{equation}
+\label{eq:lecoupdapres-2}
+\scalp{\W_k}{\I_{i+1}} = \scalpright{\W_k}{\X_{i+1} - \projx{\X}{i+1}{i}} \B_{i+1}^t = \WRoot_k^t \Lambda_{k+1}^t \; \trmat_{k+2}^t \; \dotsc \; \trmat_{i}^t \B_{i+1}^t \eqsp ,
+\end{equation}
+which, by induction, shows that \eqref{eq:induction-relation-1}--\eqref{eq:induction-relation-2} hold for all indices $i\geq k+1$. Plugging \eqref{eq:induction-relation-2} into \eqref{eq:nprjf} yields
+\begin{equation}
+\label{eq:expression-smoothed-disturbance}
+\projx{\U}{k}{n} = \WRoot_k^t\left( \B^t_{k+1}\ICov_{k+1}^{-1}\I_{k+1} + \sum_{i=k+2}^n \trmat_{k+1}^t  \dots \trmat_{i-1}^t \B_i^t\ICov_{i}^{-1}\I_{i} \right) ,
+\end{equation}
+where the term between parentheses is easily recognized as $\iqsm_k$ defined
+recursively by~\eqref{eq:dsmth_p}, thus proving~\eqref{eq:dsmth_dm}.
+
+To compute the smoothed disturbance error covariance $\Xi_{k|n}$, we apply once again \eqref{eq:prediction-error-covariance} to obtain
+\begin{align}
+  \label{eq:nfdpr}
+  \Xi_{k|n} & = \PCov(U_k) - \PCov\left( \projx{\U}{k}{n} \right)\\
+  \nonumber & = I - \sum_{i=k+1}^n \scalp{\W_k}{\I_i} \ICov^{-1}_i \scalp{\I_i}{\W_k} \\
+  \nonumber & = I - \WRoot_k^t\Biggr( \B_{k+1}^t \ICov^{-1}_{k+1} \B_{k+1} \\
+ \nonumber & \qquad \qquad \qquad + \sum_{i=k+2}^n \trmat_{k+1}^t \; \dotsc \; \trmat_{i-1}^t \B_i^t \ICov^{-1}_i \B_i  \trmat_{i-1} \; \dotsc \; \trmat_{k+1} \Biggr)\WRoot_k \eqsp,
+\end{align}
+where $I$ is the identity matrix with dimension that of the disturbance vector
+and~\eqref{eq:lecoupdapres-2} has been used to obtain the last expression. The
+term in parentheses in~\eqref{eq:nfdpr} is recognized as $\IQsm_{k}$ defined by~(\ref{eq:dsmth_U}), and (\ref{eq:dsmth_dc}) follows.
+\end{proof}
+
+\begin{proof}[Smoothed State Estimation]
+The key ingredient here is the following set of relations:
+\begin{align}
+\label{eq:induction-relation-1:state}
+& \scalpright{\X_k}{\X_i - \projx{X}{i}{i-1}}= \begin{cases}
+\postcov{k}{k-1} \eqsp, & \quad i=k \eqsp, \\
+\postcov{k}{k-1} \trmat_{k}^t \; \trmat_{k+1}^t \; \dotsc \; \trmat_{i-1}^t
+\eqsp, & \quad i \geq k+1 \eqsp,\\
+\end{cases} \\
+\label{eq:induction-relation-2:state}
+& \scalp{\X_k}{\I_i} = \begin{cases}
+\postcov{k}{k-1} \B_{k}^t \eqsp, & \quad i = k \eqsp, \\
+\postcov{k}{k-1} \trmat_{k}^t \; \trmat_{k+1}^t \; \dotsc \; \trmat_{i-1}^t \B_i^t \eqsp, & \quad i \geq k+1 \eqsp,
+\end{cases}
+\end{align}
+which may be proved by induction exactly like~\eqref{eq:induction-relation-1}--\eqref{eq:induction-relation-2}.
+
+Using~(\ref{eq:prediction-general}) as usual, the minimum mean squared error linear predictor of the initial state $X_0$ in terms of the observations $\Y_0, \ldots, Y_n$ may be expressed as
+\begin{equation}
+  \label{eq:cov_init_state_innov}
+  \projx{X}{0}{n} = \sum_{i=0}^n \scalp{X_0}{\I_i} \ICov^{-1}_i \I_i \eqsp .
+\end{equation}
+Hence by direct application of~\eqref{eq:induction-relation-2:state},
+\begin{equation}
+ \projx{X}{0}{n} = \Sigma_\Xinit \left( B_0^t \ICov_0^{-1} \I_0 + \sum_{i=1}^n \trmat^t_0 \; \dots \; \trmat^t_{i-1} \B_i^t \ICov_{i}^{-1} \I_i \right) \eqsp ,
+\end{equation}
+proving~\eqref{eq:dsmth_state1}. Proceeding as for \eqref{eq:nfdpr}, the expression for the smoothed initial state error covariance in~(\ref{eq:dsmth_scov1}) follows from \eqref{eq:prediction-error-covariance}.
+
+The update equation~\eqref{eq:dsmth_statem} is a direct consequence of
+the linearity of the projection operator applied to the state
+equation~(\ref{eq:linear_state_space:state:L2}). Finally, to prove
+\eqref{eq:dsmth_statec}, first combine the state
+equation~(\ref{eq:linear_state_space:state:L2})
+with (\ref{eq:dsmth_statem}) to obtain
+\begin{multline}
+  \PCov(\X_{k+1}-\postmean{k+1}{n}) = \PCov[\A_k(\X_{k}-\projx{X}{k}{n}) + \WRoot_k(\W_{k}-\projx{\U}{k}{n})] = \\
+  \A_k \postcov{k}{n} \A_k^t + \WRoot_k \Xi_{k|n} \WRoot_k^t - \A_k\scalp{\X_{k}}{\projx{\U}{k}{n}}\WRoot_k^t -  \WRoot_k\scalp{\projx{\U}{k}{n}}{\X_{k}}\A_k^t  \eqsp ,
+\label{eq:smth_state:expr}
+\end{multline}
+where the remark that $\scalpright{\projx{X}{k}{n}}{\W_{k}-\projx{\U}{k}{n}} = 0$, because $\projx{X}{k}{n}$ belongs to $\linspan(\Y_0, \ldots, \Y_n)$,
+has been used to obtain the second expression. In order to compute $\scalp{\X_k}{\projx{\U}{k}{n}}$ we use \eqref{eq:expression-smoothed-disturbance}, writing
+\begin{equation}
+\label{eq:covariance-state-smoothed-disturbance}
+\scalp{\X_k}{\projx{\U}{k}{n}} = \scalp{\X_k}{\I_{k+1}} \ICov_{k+1}^{-1} \B_{k+1} \WRoot_k +
+\sum_{i=k+2}^n  \scalp{\X_k}{\I_{i}}  \ICov_{i}^{-1} \B_i \trmat_{i-1} \; \dots \; \trmat_{k+1} \WRoot_k \eqsp .
+\end{equation}
+Finally, invoke \eqref{eq:induction-relation-2:state} to obtain
+\begin{equation*}
+  \scalp{\X_k}{\projx{\U}{k}{n}} = \postcov{k}{k-1} \trmat_{k}^t \B_{k+1}^t \ICov_{k+1}^{-1} \B_{k+1} \WRoot_k + \sum_{i=k+2}^n \postcov{k}{k-1}  \trmat_{k}^t  \trmat_{k+1}^t \; \dotsc \; \trmat_{i-1}^t  \B_i^t \ICov_{i}^{-1} \B_i \trmat_{i-1} \; \dots \; \trmat_{k+1} \WRoot_k \eqsp ,
+\end{equation*}
+which may be rewritten as
+\begin{equation}
+  \label{eq:Exp:X:smoothedU}
+  \scalp{\X_k}{\projx{\U}{k}{n}} = \postcov{k}{k-1} \trmat_{k}^t \IQsm_k \WRoot_k \eqsp .
+\end{equation}
+Equation~(\ref{eq:dsmth_statec}) then follows from~\eqref{eq:smth_state:expr}.
+\end{proof}
+
+\begin{rem}
+  \label{rem:dist_smooth_mean_only}
+  There are a number of situations where computing the best linear prediction
+  of the state variables is the only purpose of the analysis, and computation of
+  the error covariance $\PCov(\X_k-\postmean{k}{n})$ is not required.
+  Algorithm~\ref{algo:dist_smooth} may then be substantially simplified because
+  (\ref{eq:dsmth_U}), (\ref{eq:dsmth_dc}), (\ref{eq:dsmth_scov1}), and
+  (\ref{eq:dsmth_statec}) can be entirely skipped.
+  Storage of the prediction error covariance matrices $\postcov{k}{k-1}$
+  during the initial Kalman filtering pass is also not needed anymore.
+\index{Smoothing!disturbance|)}
+\end{rem}
+
+\begin{rem}
+  \label{rem:smoothed_X_Xp1}
+  An important quantity in the context of parameter estimation  is the
+  one-step posterior cross-covariance
+  \begin{equation}
+    \label{eq:C_k_kp1:def}
+    C_{k,k+1|n} \eqdef \PE \left[\left. \left(X_k-\projx{\X}{k}{n}\right)\left(X_{k+1}-\projx{\X}{k+1}{n}\right)^t\right|\chunk{\Y}{0}{n}\right] \eqsp .
+  \end{equation}
+  This is a quantity that can readily be evaluated during the final forward
+  recursion of Algorithm~\ref{algo:dist_smooth}. Indeed,
+  from~\eqref{eq:linear_state_space:state:L2}--\eqref{eq:dsmth_statem},
+  \[
+    X_{k+1}-\projx{\X}{k+1}{n} = \A_k \left(X_{k}-\projx{\X}{k}{n}\right) + \WRoot_k \left(\W_k - \projx{\U}{k}{n}\right) \eqsp .
+  \]
+  Hence
+  \[
+    C_{k,k+1|n} = \postcov{k}{n} \A_k^t -\PE\left(X_k\projx{\U}{k}{n}^t\right) \WRoot_k^t \eqsp ,
+  \]
+  where the fact that $E(\X_k\W_k^t)=0$ has been used. Using~\eqref{eq:Exp:X:smoothedU} then yields
+  \begin{equation}
+    \label{eq:smoothed_X_Xp1}
+    C_{k,k+1|n} = \postcov{k}{n} \A_k^t - \postcov{k}{k-1} \trmat_{k}^t \IQsm_k \WRoot_k \WRoot_k^t \eqsp .
+  \end{equation}
+\end{rem}
+
+\section{The Backward Recursion and the Two-Filter Formula}
+\index{Two-filter formula|see{Smoothing}}
+\index{Smoothing!two-filter formula|(}
+\label{sec:LGSSM:two-filter}
+Notice that up to now, we have not considered the backward functions $\backvar{k}{n}$
+in the case of Gaussian linear state-space models. In particular, and although
+the details of both approaches differ, the smoothing recursions discussed in
+Sections~\ref{sec:kalman:filtering} and~\ref{sec:pos_comput:smoothing} are
+clearly related to the general principle of backward Markovian smoothing
+discussed in Section~\ref{sec:smoothing:bckw_decomp} and do not rely on the
+forward-backward decomposition discussed in
+Section~\ref{sec:forward_backward:general}.
+
+A first terminological remark is that although major sources on Gaussian linear
+models never mention the forward-backward decomposition, it is indeed known
+under the name of \emph{two-filter formula}
+\cite[Section 10.4]{fraser:potter:1969}, \cite{kitagawa:1996}, \cite{kailath:sayed:hassibi:2000}.
+A problem however is that, as noted in Chapter~\ref{chap:smoothing}, the backward
+function $\backvar{k}{n}$ is not directly interpretable as a probability
+distribution (recall for instance that the initialization of the backward
+recursion is $\backvar{n}{n}(x) = 1$ for all $x \in \Xset$). A first approach
+consists in introducing some additional assumptions on the model that ensure
+that $\backvar{k}{n}(x)$, suitably normalized, can indeed be interpreted as a
+probability density function. The backward recursion can then be interpreted as
+the Kalman prediction algorithm, applied backwards in time, starting from the
+end of the data record \cite[Section 10.4]{kailath:sayed:hassibi:2000}.
+
+A different option, originally due to \cite{mayne:1966} and
+\cite{fraser:potter:1969}, consists in deriving the backward recursion using a
+reparameterization of the backward functions $\backvar{k}{n}$, which is robust
+to the fact that $\backvar{k}{n}(x)$ may not be integrable over $\Xset$. This
+solution has the advantage of being generic in that it does not require any
+additional assumptions on the model, other than $\VCov[k]$ being
+invertible. The drawback is that we cannot simply invoke a variant of
+Algorithm~\ref{prop:filter:linear_gauss_state_space} but need to derive a
+specific form of the backward recursion using a different parameterization.
+This implementation of the backward recursion (which could also be used, with
+some minor modifications, for usual forward prediction) is referred to as the
+{\em information form} of the Kalman filtering and prediction recursions
+(\cite[Section~6.3]{anderson:moore:1979}; \cite[Section~9.5.2]{kailath:sayed:hassibi:2000}). 
+In the time series literature, this method
+is also sometimes used as a tool to compute the smoothed estimates when using
+so-called \index{Prior!diffuse} \emph{diffuse priors} (usually for $X_0$),
+which correspond to the
+notion of improper flat distributions to be discussed below.
+
+\subsubsection{The Information Parameterization}
+\index{Information parameterization|(}
+The main ingredient of what follows consists in revisiting the calculation of
+the posterior distribution of the unobserved component $X$ in the basic
+Gaussian linear model
+\[
+  Y = B X + V \eqsp .
+\]
+Indeed, in order to prove Proposition~\ref{prop:cond:linear_gauss_mod}, we
+could have followed a very different route: assuming that both $\Sigma_V$ and
+$\PCov(Y) = B^t \Sigma_X B + \Sigma_V$ are full rank matrices, the posterior
+probability density function of $X$ given $Y$, which we denote by $p(x|y)$, is
+known by Bayes' rule to be proportional to the product of the prior $p(x)$ on
+$X$ and the conditional probability density function $p(y|x)$ of $Y$ given $X$, that is,
+\begin{equation}
+  \label{eq:bayesian_linear_model:posterior0}
+  p(x|y) \propto \exp \left\{-\frac{1}{2} \left[(y-Bx)^t \Sigma_V^{-1} (y-Bx) + (x-\mu_X)^t\Sigma_X^{-1}(x-\mu_X)  \right] \right\} \eqsp ,
+\end{equation}
+where the symbol $\propto$ indicates proportionality up to a constant that does not
+depend on the variable $x$. Note that this normalizing constant
+could easily be determined in the current case because we know that $p(x|y)$
+corresponds to a multivariate Gaussian \pdf. Hence, to fully determine $p(x|y)$,
+we just need to rewrite~\eqref{eq:bayesian_linear_model:posterior0} as a
+quadratic form in $x$:
+\begin{multline}
+  \label{eq:bayesian_linear_model:posterior:information}
+  p(x|y) \propto \exp \bigg\{ \{-\frac{1}{2}\bigl[x^t(B^t\Sigma_V^{-1}B+\Sigma_X^{-1})x - x^t(B^t\Sigma_V^{-1}y+\Sigma_X^{-1}\mu_X) \\
+  - (B^t\Sigma_V^{-1}y+\Sigma_X^{-1}\mu_X)^t x\bigr] \bigg\} \eqsp ,
+\end{multline}
+that is,
+\begin{equation}
+  \label{eq:bayesian_linear_model:posterior:information:interp}
+  p(x|y) \propto \exp \left\{ -\frac{1}{2}\bigl[(x-\mu_{X|Y})^t \Sigma_{X|Y}^{-1} (x-\mu_{X|Y}) ] \right\} \eqsp ,
+\end{equation}
+where
+\begin{align}
+  \label{eq:bayesian_linear_model:posterior:information:mean}
+  \mu_{X|Y} & = \Sigma_{X|Y} \left(B^t\Sigma_V^{-1}y + \Sigma_X^{-1}\mu_X\right) \eqsp , \\
+  \label{eq:bayesian_linear_model:posterior:information:cov}
+  \Sigma_{X|Y} & = \left(B^t\Sigma_V^{-1}B + \Sigma_X^{-1} \right)^{-1} \eqsp .
+\end{align}
+Note that in going from~\eqref{eq:bayesian_linear_model:posterior:information}
+to~\eqref{eq:bayesian_linear_model:posterior:information:mean}, we have used
+once again the fact that $p(x|y)$ only needs be determined up to a
+normalization factor, whence terms that do not depend on $x$ can
+safely be ignored.
+
+As a first consequence,
+\eqref{eq:bayesian_linear_model:posterior:information:cov}
+and~\eqref{eq:bayesian_linear_model:posterior:information:mean} are alternate
+forms of equations~\eqref{eq:post_cov:Gaussian}
+and~\eqref{eq:post_mean:Gaussian}, respectively, which we first met in
+Proposition~\ref{prop:cond:linear_gauss_mod}. The fact that
+\eqref{eq:post_cov:Gaussian} and
+\eqref{eq:bayesian_linear_model:posterior:information:cov} coincide is a well-known result from matrix theory known as the \index{Matrix inversion lemma}
+{\em matrix inversion lemma} that we could have invoked directly to
+obtain \eqref{eq:bayesian_linear_model:posterior:information:mean}
+and \eqref{eq:bayesian_linear_model:posterior:information:cov} from
+Proposition~\ref{prop:cond:linear_gauss_mod}. This simple rewriting of the
+conditional mean and covariance in the Gaussian linear model is however not the
+only lesson that can be learned
+from \eqref{eq:bayesian_linear_model:posterior:information:mean}
+and \eqref{eq:bayesian_linear_model:posterior:information:cov}. In particular,
+a very natural parameterization of the Gaussian distribution in this context
+consists in considering the inverse of the covariance matrix $\Pi =
+\Sigma^{-1}$ and the vector $\kappa = \Pi \mu$ rather than the covariance
+$\Sigma$ and the mean vector $\mu$. Both of these parameterizations are of
+course fully equivalent when the covariance matrix $\Sigma$ is invertible. In
+some contexts, the inverse covariance matrix $\Pi$ is referred to as the
+\index{Precision matrix} \emph{precision matrix}, but in the filtering context the use of this
+parameterization is generally associated with the word {\em information} (in
+reference to the fact that in a Gaussian experiment, the inverse of the
+covariance matrix is precisely the Fisher information matrix associated with the
+estimation of the mean). We shall adopt this terminology and refer to the use
+of $\kappa$ and $\Pi$ as parameters of the Gaussian distribution as the
+{\em information parameterization}. Note that because a Gaussian \pdf\ $p(x)$
+with mean $\mu$ and covariance $\Sigma$ may
+be written
+\begin{eqnarray*}
+  p(x) & \propto &
+  \exp \left\{ -\frac12 \left[x^t \Sigma^{-1} x - 2 x^t \Sigma^{-1}\mu \right] \right\} \\
+& = & \exp \left\{ -\frac12 \left[\operatorname{trace}\left(x x^t \Sigma^{-1} \right) - 2 x^t \Sigma^{-1}\mu \right] \right\} \eqsp ,
+\end{eqnarray*}
+$\Pi = \Sigma^{-1}$ and $\kappa = \Pi \mu$ also form the
+\index{Exponential family!natural parameterization!of the Normal}{\em natural parameterization}
+of the multivariate normal, considered as a member of the exponential family
+of distributions \cite{lehmann:casella:1998}.
+\index{Information parameterization|)}
+
+\subsubsection{The Gaussian Linear Model (Again!)}
+We summarize our previous findings---Eqs.~\eqref{eq:bayesian_linear_model:posterior:information:mean}
+and~\eqref{eq:bayesian_linear_model:posterior:information:cov}---in the
+form of the following alternative version of
+Proposition~\ref{prop:cond:linear_gauss_mod},
+
+\begin{prop}[Conditioning in Information Parameterization]
+  \label{prop:cond:linear_gauss_mod:inf}\index{Gaussian linear model}
+  Let
+  \[
+    Y = B X + V \eqsp ,
+  \]
+  where $\X$ and $\V$ are two independent Gaussian random vectors such that, in
+  information parameterization, $\kappa_X = {\PCov(\X)}^{-1}\PE(X)$, $\Pi_X =
+  {\PCov(\X)}^{-1}$, $\Pi_V = {\PCov(\V)}^{-1}$ and $\kappa_V = \PE(V)=0$, $B$
+  being a deterministic matrix. Then
+  \begin{align}
+    \label{eq:linear_model:posterior:information:vec}
+    \kappa_{X|Y} & = \kappa_X + B^t \Pi_V Y \eqsp , \\
+    \label{eq:linear_model:posterior:iinformation:inf}
+    \Pi_{X|Y} & = \Pi_{X} + B^t \Pi_V B \eqsp ,
+  \end{align}
+  where $\kappa_{X|Y} = {\PCov(\X|Y)}^{-1}\PE(X|Y)$ and $\Pi_{X|Y} =
+  {\PCov(\X|Y)}^{-1}$.
+
+  If the matrices $\Pi_X$, $\Pi_V$, or $\Pi_{X|Y}$ are not full rank matrices,
+  \eqref{eq:linear_model:posterior:information:vec}
+  and~\eqref{eq:linear_model:posterior:iinformation:inf} can still be
+  interpreted in a consistent way
+  using the concept of improper (flat) distributions.
+\end{prop}
+
+Equations~\eqref{eq:linear_model:posterior:information:vec}
+and~\eqref{eq:linear_model:posterior:iinformation:inf} deserve no special
+comment as they just correspond to a restatement
+of~\eqref{eq:bayesian_linear_model:posterior:information:mean}
+and~\eqref{eq:bayesian_linear_model:posterior:information:cov}, respectively.
+The last sentence of Proposition~\ref{prop:cond:linear_gauss_mod:inf} is a new
+element, however. To understand the point,
+consider~\eqref{eq:bayesian_linear_model:posterior0} again and imagine what
+would happen if $p(x)$, for instance, was assumed to be constant. Then
+\eqref{eq:bayesian_linear_model:posterior:information} would reduce to
+\begin{equation}
+  \label{eq:bayesian_linear_model:posterior:flat_prior}
+  p(x|y) \propto \exp \left\{ -\frac{1}{2}\bigl[x^t(B^t\Sigma_V^{-1}B)x - x^t(B^t\Sigma_V^{-1}y) - (B^t\Sigma_V^{-1}y)^t x\bigr] \right\} \eqsp ,
+\end{equation}
+which corresponds to a perfectly valid Gaussian distribution, when viewed as a
+function of $x$, at least when $B^t\Sigma_V^{-1}B$ has full rank. The
+only restriction is that there is of course no valid \pdf\ $p(x)$ that is
+constant on $\Xset$. This practice is however
+well established in Bayesian estimation (to be discussed in
+Chapter~\ref{sub:bay.bay}) where such a choice of $p(x)$ is referred to as
+using an {\em improper}\index{Prior!improper}\index{Prior!flat} flat prior.
+The interpretation of~\eqref{eq:bayesian_linear_model:posterior:flat_prior} is
+then that under an (improper) flat prior on $Y$, the posterior mean of $X$
+given $Y$ is
+\begin{equation}
+  \label{eq:bayesian_linear_model:LS}
+  \left(B^t\Sigma_V^{-1}B\right)^{-1}B^t\Sigma_V^{-1}Y \eqsp ,
+\end{equation}
+which is easily recognized as the (deterministic) optimally weighted
+least-squares estimate of $x$ in the linear regression model $Y = B x + V$. The
+important message here is that~\eqref{eq:bayesian_linear_model:LS} can be
+obtained direct from~\eqref{eq:linear_model:posterior:information:vec} by
+assuming that $\Pi_X$ is the null matrix and $\kappa_X$ the null vector. Hence
+Proposition~\ref{prop:cond:linear_gauss_mod:inf} also covers the case where $X$
+has an improper flat distribution, which is handled simply by setting the
+precision matrix $\Pi_X$ and the vector $\kappa_X$ equal to 0. A
+more complicated situation is illustrated by the following example.
+
+\begin{ex}
+  Assume that the linear model is such that $X$ is bivariate Gaussian and the
+  observation $Y$ is scalar with
+\[
+B = \begin{pmatrix}
+  1 & 0
+\end{pmatrix} \qquad \text{and} \qquad \PCov(V) = \sigma^2 \eqsp .
+\]
+Proposition~\ref{prop:cond:linear_gauss_mod:inf} asserts that the posterior
+parameters are then given by
+\begin{align}
+    \label{eq:linear_model:posterior:information:vec:ex}
+    \kappa_{X|Y} & = \kappa_X + \begin{pmatrix}
+  \sigma^{-2} Y\\ 0
+  \end{pmatrix} \eqsp , \\
+    \label{eq:linear_model:posterior:iinformation:inf:ex}
+    \Pi_{X|Y} & = \Pi_{X} +  \begin{pmatrix}
+  \sigma^{-2}& 0 \\ 0 & 0
+  \end{pmatrix} \eqsp .
+\end{align}
+In particular, if the prior on $X$ is improper flat,
+then~\eqref{eq:linear_model:posterior:information:vec:ex}
+and~\eqref{eq:linear_model:posterior:iinformation:inf:ex} simply mean that the
+posterior distribution of the first component of $X$ given $Y$ is Gaussian with
+mean $Y$ and variance $\sigma^2$, whereas the posterior on the second component
+is also improper flat.
+\end{ex}
+
+In the above example, what is remarkable is not the result itself, which is
+obvious, but the fact that it can be obtained by application of a single set of
+formulas that are valid irrespectively of the fact that some distributions are
+improper. In more general situations, directions that are in the null space of
+$\Pi_{X|Y}$ form a subspace where the resulting posterior is improper flat,
+whereas the posterior distribution of $X$ projected on the image $\Pi_{X|Y}$
+is a valid Gaussian distribution.
+% oKp: (omitted) Note about the fact that directions in the kernel of $\Pi$
+% always have a null projection on $\kappa$, and hence improper flat dist.
+% always correspond to $\Pi =0$ AND $\kappa=0$ (useful, 22 Apr 2004) ?
+
+The information parameterization is ambivalent because it can be used both as a
+Gaussian prior density function as in
+Proposition~\ref{prop:cond:linear_gauss_mod:inf} but also as an observed
+likelihood. There is nothing magic here but simply the observation that as
+we (i) allow for improper distributions and (ii) omit the normalization factors,
+Gaussian priors and likelihood are equivalent. The following lemma is a
+complement to Proposition~\ref{prop:cond:linear_gauss_mod:inf}, which will be
+needed below.
+
+\begin{lem} Up to terms that do not depend on $x$,
+  \label{lem:GLM:info_as_obs}
+  \begin{multline}
+    \label{eq:GLM:info_as_obs}
+    \int \exp \left\{ -\frac12 \left[ (y-Bx)^t\Sigma^{-1}(y-Bx)\right] \right\}
+    \exp \left\{-\frac12\left[ \left(y^t \Pi y -2 y^t\kappa\right)\right]\right\}\, dy \\
+    \propto \exp \left\{ -\frac12 \left[x^t B^t(I+\Pi\Sigma)^{-1}\Pi B x -2 x^t B^t (I+\Pi\Sigma)^{-1} \kappa \right] \right\}, \eqsp
+  \end{multline}
+  where $I$ denotes the identity matrix of suitable dimension.
+\end{lem}
+
+\begin{proof}
+  The \lhs\ of~\eqref{eq:GLM:info_as_obs}, which we denote by $p(x)$, may be
+  rewritten as
+  \begin{multline}
+    \label{eq:GLM:info_as_obs:tmp00}
+    p(x) = \exp \left\{ -\frac12 x B^t\Sigma^{-1}B x \right\} \times
+    \\ \int \exp -\frac12 \left[ y^t(\Pi+\Sigma^{-1}) y - 2 y^t (\kappa + \Sigma^{-1}B x) \right] dy \eqsp .
+  \end{multline}
+  Completing the square, the bracketed term in the integrand of~\eqref{eq:GLM:info_as_obs:tmp00} may be written
+  \begin{multline}
+    \label{eq:GLM:info_as_obs:tmp10}
+    \left\{y-(\Pi+\Sigma^{-1})^{-1} (\kappa+\Sigma^{-1}Bx)\right\}^t (\Pi+\Sigma^{-1}) \\
+    \times \left\{y-(\Pi+\Sigma^{-1})^{-1} (\kappa+\Sigma^{-1}Bx)\right\}\\
+    - (\kappa+\Sigma^{-1}Bx)^t (\Pi+\Sigma^{-1})^{-1} (\kappa+\Sigma^{-1}Bx)\eqsp .
+  \end{multline}
+  The exponent of $-1/2$ times the first two lines of \eqref{eq:GLM:info_as_obs:tmp10}
+  integrates to a constant (or, rather, a number not depending on $x$),
+  as it is recognized as a Gaussian \pdf. Thus
+  \begin{multline}
+    \label{eq:GLM:info_as_obs:tmp20}
+    p(x) \propto \exp -\frac12\bigg\{[-2x^tB^t\Sigma^{-1}(\Pi+\Sigma^{-1})^{-1}\kappa \\ + x^t B^t \left(\Sigma^{-1} - \Sigma^{-1}(\Pi+\Sigma^{-1})^{-1}\Sigma^{-1}\right)B x\biggr\} \eqsp ,
+  \end{multline}
+  where terms that do not depend on $x$ have been dropped.
+  Equation~\eqref{eq:GLM:info_as_obs} follows from the equalities
+  $\Sigma^{-1}(\Pi+\Sigma^{-1})^{-1} = (I + \Pi\Sigma)^{-1}$ and
+  \begin{multline*}
+    \Sigma^{-1} - \Sigma^{-1}(\Pi+\Sigma^{-1})^{-1}\Sigma^{-1} \\
+    = \Sigma^{-1}(\Pi+\Sigma^{-1})^{-1} \left[(\Pi+\Sigma^{-1}) - \Sigma^{-1}\right] = (I + \Pi\Sigma)^{-1} \Pi \eqsp .
+  \end{multline*}
+  Note that the last identity is the \index{Matrix inversion lemma} matrix
+  inversion lemma that we already met, as $(I + \Pi\Sigma)^{-1} \Pi =
+  (\Pi^{-1} + \Sigma)^{-1}$. Using this last form however is not
+  a good idea in general, however,
+  as it obviously does not apply in cases where $\Pi$ is
+  non-invertible.
+\end{proof}
+
+\subsubsection{The Backward Recursion}
+The question now is, what is the link between our original problem, which
+consists in implementing the backward recursion in Gaussian linear state-space
+models, and the information parameterization discussed in the previous section?
+The connection is the fact that the backward functions defined
+by~\eqref{eq:def:beta} do not correspond to probability measures. More
+precisely, $\backvar{k}{n}(X_k)$ defined by~\eqref{eq:def:beta} is the
+conditional density of the ``future'' observations $Y_{k+1}, \dots, Y_n$
+given $X_k$. For Gaussian linear models, we know from
+Proposition~\ref{prop:cond:linear_gauss_mod:inf} that this density is
+Gaussian and hence that $\backvar{k}{n}(x)$ has the form of a Gaussian
+likelihood,
+\[
+ p(y|x) \propto \exp -\frac{1}{2}\left[(y-Mx)^t\Sigma^{-1}(y-Mx)\right] \eqsp ,
+\]
+for some $M$ and $\Sigma$ given by~\eqref{eq:post_mean:Gaussian}
+and~\eqref{eq:post_cov:Gaussian}. Proceeding as previously, this equation can
+be put in the same form
+as~\eqref{eq:bayesian_linear_model:posterior:flat_prior} (replacing $B$ and
+$\Sigma_V$ by $M$ and $\Sigma$, respectively). Hence, a possible interpretation
+of $\backvar{k}{n}(x)$ is that it corresponds to the posterior distribution of
+$X_k$ given $Y_{k+1}, \dots, Y_n$ {\em in the pseudo-model where $X_k$ is
+  assumed to have an improper flat prior distribution}. According to the
+previous discussion, $\backvar{k}{n}(x)$ itself may not correspond to a valid
+Gaussian distribution unless one can guarantee that $M^t \Sigma^{-1} M$ is a
+full rank matrix. In particular, recall from Section~\ref{sec:smoothing:fb}
+that the backward recursion is initialized by setting $\backvar{n}{n}(x) = 1$,
+and hence $\backvar{n}{n}$ never is a valid Gaussian distribution.
+
+The route from now on is clear: in order to implement the backward recursion,
+one needs to define a set of information parameters corresponding to
+$\backvar{k}{n}$ and derive (backward) recursions for these parameters based on
+Proposition~\ref{prop:cond:linear_gauss_mod:inf}. We will denote by
+$\kappa_{k|n}$ and $\Pi_{k|n}$ the information parameters (precision matrix
+times mean and precision matrix) corresponding to $\backvar{k}{n}$ for $k=n$
+down to $0$ where, by definition, $\kappa_{n|n} = 0$ and $\Pi_{n|n} = 0$. It
+is important to keep in mind that $\kappa_{k|n}$ and $\Pi_{k|n}$ define the
+backward function $\backvar{k}{n}$ {\em only up to an unknown constant}. The
+best we can hope to determine is
+\[
+  \frac{\backvar{k}{n}(x)}{\int \backvar{k}{n}(x)\, dx} \eqsp ,
+\]
+by computing the Gaussian normalization factor in situations where $\Pi_{k|n}$
+is a full rank matrix. But this normalization is not more legitimate or
+practical than other ones, and it is preferable to consider that $\backvar{k}{n}$
+will be determined up to a constant only. In most situations, this will be a
+minor concern, as formulas that take into account this possible lack of
+normalization, such as~\eqref{eq:forw_back:auto_normalized}, are available.
+
+\begin{prop}[Backward Information Recursion]
+\label{prop:backwd:info:recursion}
+Consider the Gaussian linear state-space model
+(\ref{eq:linear_state_space:time_depend:dynamic})--(\ref{eq:linear_state_space:time_depend:observation})
+and assume that $\VCov[k]$ has full rank for all $k \geq 0$.  The
+information parameters $\kappa_{k|n}$ and $\Pi_{k|n}$, which determine
+$\backvar{k}{n}$ (up to a constant), may be computed by the following recursion.
+  \begin{description}
+  \item[Initialization:] Set $\kappa_{n|n} = 0$ and $\Pi_{n|n} = 0$.
+  \smallskip
+  \item[Backward Recursion:] For $k = n-1$ down to 0,
+    \begin{align}
+      \label{eq:bck-inf:obs:mean}
+      \tilde{\kappa}_{k+1|n} & = \B_{k+1}^t \left(\VRoot_{k+1}\VRoot_{k+1}^t\right)^{-1} \Y_{k+1} + \kappa_{k+1|n} \eqsp ,  \\
+      \label{eq:bck-inf:obs:cov}
+      \tilde{\Pi}_{k+1|n} & = \B_{k+1}^t \left(\VRoot_{k+1}\VRoot_{k+1}^t\right)^{-1}\B_{k+1} + \Pi_{k+1|n} \eqsp , \\
+      \label{eq:bck-inf:update:mean}
+      \kappa_{k|n} & = \A_k^t \left(I + \tilde{\Pi}_{k+1|n} \WRoot_{k}\WRoot_{k}^t\right)^{-1} \tilde{\kappa}_{k+1|n} \eqsp , \\
+      \label{eq:bck-inf:update:cov}
+      \Pi_{k|n} & = \A_k^t \left(I + \tilde{\Pi}_{k+1|n} \WRoot_{k}\WRoot_{k}^t\right)^{-1} \tilde{\Pi}_{k+1|n} \A_k \eqsp .
+    \end{align}
+  \end{description}
+\end{prop}
+
+\begin{proof}
+  The initialization of Proposition~\ref{prop:backwd:info:recursion} has
+  already been discussed and we just need to check that
+  \eqref{eq:bck-inf:obs:mean}--\eqref{eq:bck-inf:update:cov} correspond to an
+  implementation of the general backward recursion
+  (Proposition~\ref{prop:forward-backward:recursion}).
+
+  We split this update in two parts and first consider computing
+  \begin{equation}
+   \label{eq:bck-inf:obs}
+    \tilde{\beta}_{k+1|n}(x) \propto g_{k+1}(x) \backvar{k+1}{n}(x)
+  \end{equation}
+  from $\backvar{k+1}{n}$.
+  Equation~\eqref{eq:bck-inf:obs} may be interpreted as the posterior distribution of $X$
+  in the pseudo-model in which $X$ has a (possibly improper) prior distribution
+  $\backvar{k+1}{n}$ (with information parameters $\kappa_{k+1|n}$ and
+  $\Pi_{k+1|n}$) and
+  \[
+    Y = \B_{k+1} X + \VRoot_{k+1} \V
+  \]
+  is observed, where $\V$ is independent of $\X$.
+  Equations\eqref{eq:bck-inf:obs:mean}--\eqref{eq:bck-inf:obs:cov} thus correspond
+  to the information parameterization of $\tilde{\beta}_{k+1|n}$ by
+  application of Proposition~\ref{prop:cond:linear_gauss_mod:inf}.
+
+  From~\eqref{eq:rec:beta} we then have
+  \begin{equation}
+   \label{eq:bck-inf:update}
+    \backvar{k}{n}(x) = \int \Q_k(x,dx') \tilde{\beta}_{k+1|n}(x') \eqsp ,
+  \end{equation}
+  where we use the notation $\Q_k$ rather than $\Q$ to emphasize that
+  we are dealing with possibly non-homogeneous models. Given that $\Q_k$ is a
+  Gaussian transition density function corresponding
+  to~(\ref{eq:linear_state_space:time_depend:dynamic}),
+  \eqref{eq:bck-inf:update} may be computed explicitly by application of
+  Lemma~\ref{lem:GLM:info_as_obs} which gives~\eqref{eq:bck-inf:update:mean}
+  and~\eqref{eq:bck-inf:update:cov}.
+\end{proof}
+
+While carrying out the backward recursion according to
+Proposition~\ref{prop:backwd:info:recursion}, it is also possible to
+simultaneously compute the marginal smoothing distribution by use
+of~\eqref{eq:forw_back:auto_normalized}.
+
+\begin{algo}[Forward-Backward Smoothing]
+\label{algo:forwbackwd:smooth}\index{Forward-backward!in state-space model}
+\begin{description}
+\item[Forward Recursion:] Perform Kalman filtering according to
+  Algorithm~\ref{algo:filter:linear_state_space:kalman:filtered} and store the
+  values of $\filtmean{k}$ and $\filtcov{k}$.
+\item[Backward Recursion:] Compute the backward recursion, obtaining
+  for each $k$
+  the mean and covariance matrix of the smoothed estimate as
+  \begin{align}
+    \label{eq:forwbackwd:smooth:postmean}
+    \postmean{k}{n} & = \filtmean{k} + \filtcov{k}\left(I + \Pi_{k|n}\filtcov{k}\right)^{-1}(\kappa_{k|n} - \Pi_{k|n}\filtmean{k}) \eqsp , \\
+    \label{eq:forwbackwd:smooth:postcov}
+    \postcov{k}{n} & = \filtcov{k} - \filtcov{k}\left(I + \Pi_{k|n}\filtcov{k}\right)^{-1}\Pi_{k|n}\filtcov{k} \eqsp .
+  \end{align}
+\end{description}
+\end{algo}
+
+\begin{proof}
+  These two equations can be obtained exactly as in the proof of
+  Lemma~\ref{lem:GLM:info_as_obs}, replacing $(y-Bx)^t\Sigma^{-1}(y-Bx)$ by
+  $(x-\mu)^t\Sigma^{-1}(x-\mu)$ and applying the result with
+  $\mu=\filtmean{k}$, $\Sigma = \filtcov{k}$, $\kappa = \kappa_{k|n}$ and $\Pi
+  = \Pi_{k|n}$. If $\Pi_{k|n}$ is invertible,
+  \eqref{eq:forwbackwd:smooth:postmean}
+  and~\eqref{eq:forwbackwd:smooth:postcov} are easily recognized as the
+  application of Proposition~\ref{prop:cond:linear_gauss_mod} with $B = I$,
+  $\PCov(V) = \Pi_{k|n}^{-1}$, and an equivalent observed value of $Y =
+  \Pi_{k|n}^{-1} \kappa_{k|n}$.
+\end{proof}
+
+\begin{rem}
+  In the original work by \cite{mayne:1966}, the backward information recursion
+  is carried out on the parameters of $\tilde{\beta}_{k|n}$, as defined
+  by~\eqref{eq:bck-inf:obs}, rather than on $\backvar{k}{n}$.  It is easily
+  checked using~\eqref{eq:bck-inf:obs:mean}--\eqref{eq:bck-inf:update:cov} that,
+  except for this difference of focus,
+  Proposition~\ref{prop:backwd:info:recursion} is equivalent to the
+  \cite{mayne:1966} formulas---see also
+  \cite[Section~10.4]{kailath:sayed:hassibi:2000} on this point.
+  Of course, in the work of
+  \cite{mayne:1966}, $\tilde{\beta}_{k|n}$ has to be combined with the
+  predictive distribution $\pred{k}{k-1}$ rather than with the filtering
+  distribution $\filt{k}$, as $\tilde{\beta}_{k|n}$ already incorporates the
+  knowledge of the observation $Y_k$.
+  Proposition~\ref{prop:backwd:info:recursion} and
+  Algorithm~\ref{algo:forwbackwd:smooth} are here stated in a form that is
+  compatible with our general definition of the forward-backward decomposition
+  in Section~\ref{sec:forward_backward:general}.
+\index{Smoothing!two-filter formula|)}
+\index{State-space model!Gaussian linear|)}
+\end{rem}
+

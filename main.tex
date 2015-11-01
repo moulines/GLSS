@@ -1,0 +1,56 @@
+%% $Id: main.tex,v 4.4 2005/05/25 16:04:55 oKp Exp $
+%\documentclass[envcountsame,envcountsect]{macros/svmono}
+\documentclass[a4,11pt]{book}
+% These must be set before including macros
+\usepackage{ifthen}
+\newboolean{sv_used}
+\setboolean{sv_used}{false} % Never set this to false (svmono must be used here)
+% Macros (leave this first)
+\input{macros/hmm}
+% Please don't add private macros after this point
+\newboolean{preview}
+\setboolean{preview}{true}  % Set to true for clean output & references
+                            % to false for viewing labels, notes & cvs versions
+\ifthenelse{\boolean{preview}}{}%
+{\usepackage{fancyhdr,scrtime,showlabels,showidx}}
+% Uncomment this to include hyperlinks (requires recent version of pdflatex)
+%\usepackage{hyperref}
+
+% Tweaks added to satistify the copyeditor
+% This line numbers subsubsections (comment to suppress)
+\setcounter{secnumdepth}{3}
+
+% Index
+\makeindex
+
+% Define here things that you want included (comment the next line - do not
+% erase it!)
+
+\begin{document}
+
+% Date and time at the bottom of the page (not in preview mode)
+\ifthenelse{\not\boolean{preview}}{%
+  \pagestyle{fancyplain} \renewcommand{\headrulewidth}{0pt}
+  \lhead[\leftmark]{\leftmark}
+  \rhead[\thepage]{\thepage}
+\cfoot[\fancyplain{\em \today\ ({\protect\thistime} local time)}{\em \today\ ({\protect\thistime} local time)}]{\fancyplain{\em \today\ ({\protect\thistime} local time)}{\em \today\ ({\protect\thistime} local time)}}}%
+{}
+
+\title{Kalman Filter}
+\author{Sylvain Le Corff, Vincent Moulines}
+\maketitle
+
+\frontmatter
+
+\tableofcontents
+
+\mainmatter
+\chapter{Kalman filter and smoother}
+\include{Tex/Kalman}
+\appendix
+\include{tex/l2-appendix}
+
+\bibliographystyle{macros/apalike}
+\bibliography{bib/zbook}
+
+\end{document}

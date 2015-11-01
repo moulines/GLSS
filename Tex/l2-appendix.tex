@@ -1,0 +1,255 @@
+\chapter{Linear Prediction}
+\label{sec:appendix:L2}
+\label{sec:appendix:linear_prediction}
+
+\ifthenelse{\not\boolean{preview}}{%
+\cfoot[{\footnotesize\em $ $Revision: 4.1 $ $\hfill$ $Date: 2005/04/07 20:02:21 $ $\hfill $ $Author: tobias $ $}]{{\footnotesize\em $ $Revision: 4.1 $ $\hfill$ $Date: 2005/04/07 20:02:21 $ $\hfill $ $Author: tobias $ $}}
+}%
+{}
+
+This appendix provides a brief introduction to the theory of linear prediction of
+random variables. Further reading includes
+\cite[Chapter~2]{brockwell:davis:1991}, which provides a proof of
+the projection theorem
+(Theorem~\ref{thm:projection} below), as well as \cite{williams:1991} or
+\cite[Chapter 22]{jacod:protter:2000}. The results below are used in
+Chapter~\ref{chap:kalman} to derive the particular form taken by the filtering
+and smoothing recursions in linear state-space models.
+
+\section{Hilbert Spaces}
+
+\begin{defi}[Inner Product Space]
+A real linear space $\mathcal{H}$ is said to be an
+\emph{inner product space} if for each pair of elements
+$x$ and $y$ in $\mathcal{H}$ there is a real number
+$\scalprod{x}{y}$, called the \emph{inner product}
+(or, \emph{scalar product}) of $x$ and $y$, such that
+\begin{enum_a}
+\item $\scalprod{x}{y}= \scalprod{y}{x}$,
+\item $\scalprod{\alpha x + \beta y}{z}= \alpha \scalprod{x}{z} + \beta \scalprod{y}{z}$ for $z$ in $\mathcal{H}$ and real $\alpha$ and $\beta$,
+\item $\scalprod{x}{x} \geq 0$ and $\scalprod{x}{x}= 0$ if and only if $x = 0$.
+\end{enum_a}
+\end{defi}
+Two elements $x$ and $y$ such that $\scalprod{x}{y}=0$ are said to be
+\emph{orthogonal}.
+
+The \emph{norm} $\| x \|$ of an element $x$ of an inner product space
+is defined as
+\begin{equation}
+\label{eq:definition-norm}
+\| x \|= \sqrt{\scalprod{x}{x}}.
+\end{equation}
+The norm satisfies
+\begin{enum_a}
+\item $\| x + y \| \leq \| x \| + \| y \|$ (triangle inequality),
+\item $\| \alpha x \| = |\alpha| \| x \|$ for real $\alpha$,
+\item $\|x \| \geq 0$ and $\| x \|= 0$ if and only if $x= 0$.
+\end{enum_a}
+These properties justify the use of the terminology ``norm''
+for $\| \cdot \|$. In addition, the Cauchy-Schwarz inequality
+$|\scalprod{x}{y}|\leq \| x\|\,\|y\|$ holds, with equality
+if and only if $y=\alpha x$ for some real $\alpha$.
+
+\begin{defi}[Convergence in Norm]
+A sequence $\{ x_k \}_{k \geq 0}$ of elements of an
+inner product space $\mathcal{H}$ is said to \emph{converge in norm}
+to $x \in \mathcal{H}$ if
+$\| x_n - x \| \to 0$ as $n \to \infty$.
+\end{defi}
+
+It is readily verified that a sequence $\{ x_k \}_{k \geq 0}$
+that converges in norm to some element $x$ satisfies
+$\limsup_{n \geq 0} \, \sup_{m \geq n} \| x_m-x_n\| = 0$.
+Any sequence, convergent or not, with this property is
+said to be a \emph{Cauchy sequence}. Thus any convergent sequence is
+a Cauchy sequence. If the reverse implication holds true as well,
+that any Cauchy sequence is convergent (in norm), then the space
+is said to be \emph{complete}.
+A complete inner product space is called a \emph{Hilbert space}.
+
+\begin{defi}[Hilbert Space]
+  \index{Hilbert space} A \emph{Hilbert space} $\mathcal{H}$ is an inner
+  product space that is complete, that is, an inner product space in which
+  every Cauchy sequence converges in norm to some element in $\mathcal{H}$.
+\end{defi}
+
+It is well-known that $\rset^k$ equipped with the inner product
+$\scalprod{x}{y} = \sum_{i=1}^k x_i y_i$,
+where $x= (x_1, \dotsc, x_k)$ and $y = (y_1, \dotsc, y_k)$,
+is a Hilbert space. A more sophisticated example is the space of
+square integrable random variables.
+Let $(\Omega,\mathcal{F},\PP)$ be a probability space and let
+$\mathcal{L}^2(\Omega,\mathcal{F},\PP)$ be the space
+of square integrable random variables on $(\Omega,\mathcal{F},\PP)$.
+For any two elements $X$ and $Y$ in $\mathcal{L}^2(\Omega,\mathcal{F},\PP)$
+we define
+\begin{equation}
+\label{eq:scalar:product}
+\scalprod{X}{Y} = \PE( X Y) \eqsp .
+\end{equation}
+It is easy to check that $\scalprod{X}{Y}$ satisfies all the properties
+of an inner product except for the last one:
+if $\scalprod{X}{Y}= 0$, then it does not follow that $X(\omega)= 0$
+for all $\omega \in \Omega$, but only that
+$\PP \{ \omega \in \Omega: X(\omega)= 0 \} = 1$.
+This difficulty is circumvented by saying that
+the random variables $X$ and $Y$ are \emph{equivalent} if
+$\PP ( X = Y) = 1$. This equivalence relation partitions
+$\mathcal{L}^2(\Omega,\mathcal{F},\PP)$ into classes
+of random variables such that any two random variables in the same
+class are equal with probability one.
+The space $\ltwo(\Omega,\mathcal{F},\PP)$ is the set of these
+equivalence classes with inner product still defined by
+\eqref{eq:scalar:product}. Because each class is uniquely determined
+by specifying any one of the random variables in it,
+we shall continue to use the notation $X$ and $Y$ for the elements in
+$\ltwo$ and to call them random variables, although it is sometimes
+important that $X$ stands for an equivalence class of random variables.
+A well-known result in functional analysis is the following.
+
+\begin{prop}
+The space $\mathcal{H}= \ltwo(\Omega,\mathcal{F},\PP)$ equipped with
+the inner product \eqref{eq:scalar:product} is a Hilbert space.
+\end{prop}
+
+\index{Mean square!convergence} Norm convergence of a sequence
+$\{X_n \}$ in $\ltwo(\Omega,\mathcal{F},\PP)$ to a limit $X$ means that
+$$
+\| X_n - X\|^2 = \PE |X_n - X|^2 \to 0 \quad \text{as} \quad n \to \infty.
+$$
+Norm convergence of $X_n$ to $X$ in an $\ltwo$-space is often called
+\emph{mean square convergence}.
+
+
+\section{The Projection Theorem}
+Before introducing the notion of projection in Hilbert spaces
+in general and in $\ltwo$-spaces in particular, some definitions are needed.
+
+\begin{defi}[Closed Subspace]
+A linear subspace $\mathcal{M}$ of a Hilbert space $\mathcal{H}$ is said to
+be closed if $\mathcal{M}$ contains all its limit points.
+That is, if $\{x_n\}$ is a sequence in $\mathcal{M}$ converging to some
+element $x\in\mathcal{H}$, then $x\in\mathcal{M}$.
+\end{defi}
+
+The lemma below is a direct consequence of the fact that the inner product is
+continuous mapping from $\mathcal{H}$ to $\rset$.
+
+\begin{lem}[Closedness of Finite Spans]
+  If $y_1, \dots, y_n$ is a finite family of elements of $\mathcal{H}$,
+  then the linear subspace spanned by $y_1, \dots, y_n$,
+  \[
+    \linspan(y_1, \dots, y_n) \eqdef
+    \left\{ x\in \mathcal{H} : x = \sum_{i=1}^n \alpha_i y_i, \
+      \text{for some $\alpha_1, \dots, \alpha_n \in \rset$} \right\} \eqsp ,
+  \]
+  is a  closed subspace of $\mathcal{H}$.
+\end{lem}
+
+\begin{defi}[Orthogonal Complement]
+The \emph{orthogonal complement} $\mathcal{M}^\perp$ of a subset $\mathcal{M}$
+of $\mathcal{H}$ is the set of all elements of $\mathcal{H}$
+that are orthogonal to every element of $\mathcal{M}$:
+$x \in \mathcal{M}^\perp$ if and only if $\scalprod{x}{y}=0$ for every
+$y \in \mathcal{M}$.
+\end{defi}
+
+\begin{thm}[The Projection Theorem]
+  \label{thm:projection}\index{Projection theorem}
+  Let $\mathcal{M}$ be a closed linear subspace of a Hilbert space
+  $\mathcal{H}$ and let $x \in \mathcal{H}$. Then the following
+  hold true.
+  \begin{enum_i}
+  \item There exists a unique element $\hat{x} \in \mathcal{M}$ such that
+$$
+\| x - \hat{x} \| = \inf_{y \in \mathcal{M}} \|x-y\| \eqsp.
+$$
+  \item $\hat{x}$ is the unique element of $\mathcal{M}$ such that
+  \[
+    (x-\hat{x}) \in \mathcal{M}^\perp \eqsp.
+  \]
+ \end{enum_i}
+  The element $\hat{x}$ is referred to as the \emph{projection}
+  of $x$ onto $\mathcal{M}$.
+\end{thm}
+
+\begin{cor}[The Projection Mapping]
+If $\mathcal{M}$ is a closed linear subspace of the Hilbert space $\mathcal{H}$
+and $I$ is the identity mapping on $\mathcal{H}$, then there is a
+unique mapping from
+$\mathcal{H}$ onto $\mathcal{M}$, denoted $\proj{\cdot}{\mathcal{M}}$, such that $I-\proj{\cdot}{\mathcal{M}}$
+maps $\mathcal{H}$ onto $\mathcal{M}^\perp$.
+$\proj{\cdot}{\mathcal{M}}$ is called the \emph{projection mapping}
+onto $\mathcal{M}$.
+\end{cor}
+
+The following properties of the projection mapping can be readily
+obtained from Theorem~\ref{thm:projection}.
+
+\begin{prop}[Properties of the Projection Mapping]
+\label{prop:properties_projection_mapping}
+Let $\mathcal{H}$ be a Hilbert space and let
+$\proj{\cdot}{\mathcal{M}}$ denote the projection mapping onto a
+closed linear subspace $\mathcal{M}$.
+Then the following properties hold true.
+\begin{enum_i}
+\item For all $x$, $y$ in $\mathcal{H}$ and real $\alpha$, $\beta$,
+  $$\proj{\alpha x + \beta y}{\mathcal{M}}
+  = \alpha \proj{x}{\mathcal{M}} + \beta \proj{y}{\mathcal{M}}\eqsp.
+  $$
+\item $x=\proj{x}{\mathcal{M}}+\proj{x}{\mathcal{M^\perp}}$.
+\item \label{item:decomposition_error_projection}
+  $\|x \|^2= \| \proj{x}{\mathcal{M}} \|^2
+  + \| \proj{x}{\mathcal{M^\perp}} \|^2$.
+\item $x \mapsto \proj{x}{\mathcal{M}}$ is continuous.
+\item $x \in \mathcal{M}$ if and only if $\proj{x}{\mathcal{M}}= x$
+  and $x \in \mathcal{M}^\perp$ if and only if
+  $\proj{x}{\mathcal{M}^\perp}= 0$.
+\item If $\mathcal{M}_1$ and $\mathcal{M}_2$ are two closed linear
+  subspaces of $\mathcal{H}$, then $\mathcal{M}_1 \subseteq \mathcal{M}_2$
+  if and only if for all $x \in \mathcal{H}$,
+ \[
+  \operatorname{proj}(\proj{x}{\mathcal{M}_2}\mid\mathcal{M}_1)
+  = \proj{x}{\mathcal{M}_1} \eqsp .
+ \]
+ \end{enum_i}
+\end{prop}
+
+When the space $\mathcal{H}$ is an $\ltwo$-space, the following
+terminology is often preferred.
+
+\begin{defi}[Best Linear Prediction]
+If $\mathcal{M}$ is a closed subspace of $\ltwo(\Omega,\mathcal{F},\PP)$
+and $X \in \ltwo(\Omega,\mathcal{F},\PP)$, then the
+\emph{best linear predictor}
+(also called \index{Mean square!prediction} \emph{minimum mean square error linear predictor})
+of $X$ in $\mathcal{M}$ is the element $\hat{X} \in \mathcal{M}$ such that
+$$
+\| \X - \hat{\X} \|^2 \eqdef \PE (X - \hat{X} )^2 \leq \PE (X - Y)^2
+\quad \mbox{for all $Y \in \mathcal{M}$} \eqsp.
+$$
+\end{defi}
+
+The ``best linear predictor'' is clearly just an alternative denomination for
+$\proj{X}{\mathcal{M}}$, taking the probabilistic context into account.
+Interestingly, the projection theorem implies that $\hat{\X}$ is also the
+unique element in $\mathcal{M}$ such that
+$$
+  \scalprod{X-\hat{X}}{Y} \eqdef \PE[(X-\hat{X})Y] = 0 \eqsp
+  \quad \text{for all $Y \in \mathcal{M}$} \eqsp .
+  $$
+  An immediate consequence of
+  Proposition~\ref{prop:properties_projection_mapping}\ref{item:decomposition_error_projection} is that the
+  \index{Mean square!error} \emph{mean square prediction error}
+  $\|X-\hat{X}\|^2$ may be written in two other
+  equivalent and often useful ways, namely
+\begin{equation*}
+  %\label{eq:proj_error}
+  \|X-\hat{X}\|^2 \eqdef \PE[(X-\hat{X})^2] = \PE[X(X-\hat{X})] = \PE[X^2] - \PE[\hat{X}^2] \eqsp .
+ % \scalprod{X}{X-\hat{X}}= \|X\|^2 - \|\hat{X}\|^2
+\end{equation*}
+
+% This is useful when using Emacs/AucTeX/RefTeX please don't delete!
+% Local Variables:
+% TeX-master: "../main"
+% End:
